@@ -1,9 +1,4 @@
-
-  # Admin Dashboard Design
-
-  This is a code bundle for Admin Dashboard Design. The original project is available at https://www.figma.com/design/OXdWXghKY8JdKiipWUPbnP/Admin-Dashboard-Design.
-
-  ## Running the code
+## Running the code
 
   Run `npm i` to install the dependencies.
 
