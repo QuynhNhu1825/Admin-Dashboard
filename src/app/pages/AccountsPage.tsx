@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { apiRequest } from "../services/api";
 import {
   Avatar,
   Box,
@@ -36,53 +37,6 @@ interface Account {
   token: number;
 }
 
-const mockAccounts: Account[] = [
-  {
-    id: "1",
-    tenDangNhap: "nva_user",
-    hoTen: "Nguyễn Văn A",
-    email: "nguyenvana@example.com",
-    soDienThoai: "0901234567",
-    vaiTro: "User",
-    trangThai: 1,
-    ngayTao: "2024-06-15 10:30",
-    token: 3,
-  },
-  {
-    id: "2",
-    tenDangNhap: "ttb_user",
-    hoTen: "Trần Thị B",
-    email: "tranthib@example.com",
-    soDienThoai: "0912345678",
-    vaiTro: "User",
-    trangThai: 1,
-    ngayTao: "2024-06-14 15:20",
-    token: 1,
-  },
-  {
-    id: "3",
-    tenDangNhap: "lvc_sp",
-    hoTen: "Lê Văn C",
-    email: "levanc@example.com",
-    soDienThoai: "0923456789",
-    vaiTro: "User",
-    trangThai: 0,
-    ngayTao: "2024-06-10 09:15",
-    token: 0,
-  },
-  {
-    id: "4",
-    tenDangNhap: "admin_phamd",
-    hoTen: "Phạm Thị D",
-    email: "phamthid@example.com",
-    soDienThoai: "0934567890",
-    vaiTro: "Admin",
-    trangThai: 1,
-    ngayTao: "2024-06-16 08:45",
-    token: 99,
-  },
-];
-
 const orange = "#f59e0b";
 const orangeLight = "#fef3c7";
 const borderColor = "#e5e7eb";
@@ -90,25 +44,46 @@ const textMain = "#111827";
 const textMuted = "#6b7280";
 
 export function AccountsPage() {
-  const [accounts, setAccounts] = useState<Account[]>(mockAccounts);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    apiRequest("/admin/accounts")
+      .then(res => {
+        if (res.success) {
+          setAccounts(res.accounts || []);
+        }
+      })
+      .catch(err => console.error("Fetch accounts error:", err));
+  }, []);
 
   const filteredAccounts = accounts.filter(
     (account) =>
-      account.hoTen.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      account.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      account.tenDangNhap.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      account.soDienThoai.includes(searchTerm)
+      (account.hoTen || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (account.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (account.tenDangNhap || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (account.soDienThoai || "").includes(searchTerm)
   );
 
-  const toggleAccountStatus = (id: string) => {
-    setAccounts((prev) =>
-      prev.map((acc) =>
-        acc.id === id
-          ? { ...acc, trangThai: acc.trangThai === 1 ? 0 : 1 }
-          : acc
-      )
-    );
+  const toggleAccountStatus = async (id: string) => {
+    const account = accounts.find(a => a.id === id);
+    if (!account) return;
+    const newStatus = account.trangThai === 1 ? 0 : 1;
+    try {
+      const res = await apiRequest(`/admin/accounts/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ trangThai: newStatus })
+      });
+      if (res.success) {
+        setAccounts((prev) =>
+          prev.map((acc) =>
+            acc.id === id ? { ...acc, trangThai: newStatus } : acc
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Toggle account status error:", err);
+    }
   };
 
   const getInitials = (name: string) => {

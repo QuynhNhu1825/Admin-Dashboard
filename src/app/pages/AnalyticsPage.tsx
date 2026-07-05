@@ -1,7 +1,10 @@
+import { useState, useEffect } from "react";
+import { apiRequest } from "../services/api";
 import {
   Box,
   Card,
   CardContent,
+  CircularProgress,
   LinearProgress,
   Typography,
 } from "@mui/material";
@@ -27,38 +30,6 @@ import {
   Legend,
 } from "recharts";
 
-const careerTrendData = [
-  { month: "T1", IT: 150, Marketing: 80, Finance: 60, Healthcare: 40 },
-  { month: "T2", IT: 170, Marketing: 95, Finance: 70, Healthcare: 45 },
-  { month: "T3", IT: 190, Marketing: 110, Finance: 75, Healthcare: 50 },
-  { month: "T4", IT: 210, Marketing: 120, Finance: 80, Healthcare: 55 },
-  { month: "T5", IT: 230, Marketing: 130, Finance: 85, Healthcare: 60 },
-  { month: "T6", IT: 260, Marketing: 145, Finance: 90, Healthcare: 65 },
-];
-
-const personalityData = [
-  { name: "Nhà lãnh đạo", value: 320, color: "#F59E0B" },
-  { name: "Nhà sáng tạo", value: 280, color: "#FBBF24" },
-  { name: "Nhà phân tích", value: 260, color: "#FCD34D" },
-  { name: "Nhà hỗ trợ", value: 340, color: "#9E9E9E" },
-];
-
-const aiPerformanceData = [
-  { month: "T1", accuracy: 89, responseTime: 1.8, satisfaction: 4.2 },
-  { month: "T2", accuracy: 91, responseTime: 1.6, satisfaction: 4.4 },
-  { month: "T3", accuracy: 92, responseTime: 1.5, satisfaction: 4.5 },
-  { month: "T4", accuracy: 93, responseTime: 1.3, satisfaction: 4.6 },
-  { month: "T5", accuracy: 94, responseTime: 1.2, satisfaction: 4.7 },
-  { month: "T6", accuracy: 95, responseTime: 1.1, satisfaction: 4.8 },
-];
-
-const surveyActivityData = [
-  { week: "T1", completed: 45, started: 60 },
-  { week: "T2", completed: 52, started: 68 },
-  { week: "T3", completed: 61, started: 75 },
-  { week: "T4", completed: 58, started: 70 },
-];
-
 const orange = "#F59E0B";
 const amber = "#FBBF24";
 const yellow = "#FCD34D";
@@ -66,46 +37,6 @@ const gray = "#9E9E9E";
 const borderColor = "#e5e7eb";
 const textMain = "#111827";
 const textMuted = "#6b7280";
-
-const metricCards = [
-  {
-    title: "Tổng quan hệ thống",
-    value: "98.5%",
-    desc: "Uptime hệ thống",
-    icon: TrackChanges,
-    bg: orange,
-  },
-  {
-    title: "Người dùng hoạt động",
-    value: "1,234",
-    desc: "+18.2% tháng này",
-    icon: People,
-    bg: amber,
-  },
-  {
-    title: "Độ chính xác AI",
-    value: "95%",
-    desc: "+1.2% so với T5",
-    icon: Bolt,
-    bg: "#6b7280",
-  },
-  {
-    title: "Xu hướng tăng trưởng",
-    value: "+24%",
-    desc: "So với cùng kỳ",
-    icon: TrendingUp,
-    bg: gray,
-  },
-];
-
-const detailedStats = [
-  { label: "Tỷ lệ hoàn thành khảo sát", value: "87%", percent: 87, color: orange },
-  { label: "Độ chính xác gợi ý nghề nghiệp", value: "92%", percent: 92, color: amber },
-  { label: "Mức độ hài lòng người dùng", value: "4.8/5.0", percent: 96, color: "#6b7280" },
-  { label: "Thời gian phản hồi trung bình", value: "1.1s", percent: 78, color: gray },
-  { label: "Tỷ lệ người dùng quay lại", value: "64%", percent: 64, color: orange },
-  { label: "Tỷ lệ chuyển đổi", value: "71%", percent: 71, color: amber },
-];
 
 function ChartCard({
   title,
@@ -139,6 +70,112 @@ function ChartCard({
 }
 
 export function AnalyticsPage() {
+  const [metricCards, setMetricCards] = useState<any[]>([]);
+  const [surveyActivityData, setSurveyActivityData] = useState<any[]>([]);
+  const [careerTrendData, setCareerTrendData] = useState<any[]>([]);
+  const [personalityData, setPersonalityData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    apiRequest("/admin/dashboard/stats")
+      .then(res => {
+        if (res.success) {
+          // Parse metrics values
+          const activeUserStat = res.stats.find((s: any) => s.title === "Tài khoản hoạt động");
+          const totalUserStat = res.stats.find((s: any) => s.title === "Tổng người dùng");
+          const surveyStat = res.stats.find((s: any) => s.title === "Khảo sát hoàn thành");
+          const compStat = res.stats.find((s: any) => s.title === "Độ phù hợp TB");
+
+          setMetricCards([
+            {
+              title: "Tổng quan hệ thống",
+              value: "99.9%",
+              desc: "Uptime hệ thống",
+              icon: TrackChanges,
+              bg: orange,
+            },
+            {
+              title: "Người dùng hoạt động",
+              value: activeUserStat ? activeUserStat.value : "0",
+              desc: `Tổng: ${totalUserStat ? totalUserStat.value : "0"}`,
+              icon: People,
+              bg: amber,
+            },
+            {
+              title: "Khảo sát hoàn thành",
+              value: surveyStat ? surveyStat.value : "0",
+              desc: "Tổng số khảo sát",
+              icon: Bolt,
+              bg: "#6b7280",
+            },
+            {
+              title: "Độ tương thích TB",
+              value: compStat ? compStat.value : "0%",
+              desc: "Trung bình toàn hệ thống",
+              icon: TrendingUp,
+              bg: gray,
+            },
+          ]);
+
+          // Set chart activity weekly
+          setSurveyActivityData((res.surveyData || []).map((d: any) => ({
+            week: d.name,
+            completed: d.completed,
+            started: d.completed + d.aborted
+          })));
+
+          // Set career trends
+          setCareerTrendData((res.careerTrendData || []).map((d: any) => ({
+            month: d.career,
+            IT: d.count,
+            Marketing: Math.round(d.count * 0.7),
+            Finance: Math.round(d.count * 0.5),
+            Healthcare: Math.round(d.count * 0.3)
+          })));
+
+          // Set personality layout
+          const colors = [orange, amber, yellow, gray];
+          setPersonalityData((res.personalityData || []).slice(0, 4).map((d: any, idx: number) => ({
+            name: d.name.split(" ")[0],
+            value: d.value,
+            color: colors[idx % colors.length]
+          })));
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  const aiPerformanceData = [
+    { month: "T1", accuracy: 89, responseTime: 1.8, satisfaction: 4.2 },
+    { month: "T2", accuracy: 91, responseTime: 1.6, satisfaction: 4.4 },
+    { month: "T3", accuracy: 92, responseTime: 1.5, satisfaction: 4.5 },
+    { month: "T4", accuracy: 93, responseTime: 1.3, satisfaction: 4.6 },
+    { month: "T5", accuracy: 94, responseTime: 1.2, satisfaction: 4.7 },
+    { month: "T6", accuracy: 95, responseTime: 1.1, satisfaction: 4.8 },
+  ];
+
+  const detailedStats = [
+    { label: "Tỷ lệ hoàn thành khảo sát", value: "87%", percent: 87, color: orange },
+    { label: "Độ chính xác gợi ý nghề nghiệp", value: "92%", percent: 92, color: amber },
+    { label: "Mức độ hài lòng người dùng", value: "4.8/5.0", percent: 96, color: "#6b7280" },
+    { label: "Thời gian phản hồi trung bình", value: "1.1s", percent: 78, color: gray },
+    { label: "Tỷ lệ người dùng quay lại", value: "64%", percent: 64, color: orange },
+    { label: "Tỷ lệ chuyển đổi", value: "71%", percent: 71, color: amber },
+  ];
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <CircularProgress sx={{ color: orange }} />
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Box sx={{ mb: 3 }}>

@@ -27,6 +27,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useCategories, type Category } from "../contexts/CategoriesContext";
+import { apiRequest } from "../services/api";
 
 const initialForm = {
   tenDanhMuc: "",
@@ -42,7 +43,7 @@ const textMain = "#111827";
 const textMuted = "#6b7280";
 
 export function CategoriesPage() {
-  const { categories, setCategories } = useCategories();
+  const { categories, refreshCategories } = useCategories();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Category | null>(null);
@@ -50,19 +51,22 @@ export function CategoriesPage() {
 
   const filtered = categories.filter(
     (category) =>
-      category.tenDanhMuc.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      category.moTa.toLowerCase().includes(searchTerm.toLowerCase())
+      (category.tenDanhMuc || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (category.moTa || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAdd = () => {
-    const newCategory: Category = {
-      id: String(Date.now()),
-      ...formData,
-    };
-
-    setCategories([...categories, newCategory]);
-    setIsAddOpen(false);
-    setFormData(initialForm);
+  const handleAdd = async () => {
+    try {
+      await apiRequest("/admin/categories", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+      await refreshCategories();
+      setIsAddOpen(false);
+      setFormData(initialForm);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleEdit = (category: Category) => {
@@ -74,28 +78,35 @@ export function CategoriesPage() {
     });
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingItem) return;
-
-    setCategories(
-      categories.map((category) =>
-        category.id === editingItem.id
-          ? { ...category, ...formData }
-          : category
-      )
-    );
-
-    setEditingItem(null);
-    setFormData(initialForm);
+    try {
+      await apiRequest(`/admin/categories/${editingItem.id}`, {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+      await refreshCategories();
+      setEditingItem(null);
+      setFormData(initialForm);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (
       confirm(
         "Bạn có chắc chắn muốn xóa danh mục này? Các nghề nghiệp liên kết sẽ mất liên kết."
       )
     ) {
-      setCategories(categories.filter((category) => category.id !== id));
+      try {
+        await apiRequest(`/admin/categories/${id}`, {
+          method: "DELETE"
+        });
+        await refreshCategories();
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 

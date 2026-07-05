@@ -1,7 +1,10 @@
+import { useState, useEffect } from "react";
+import { apiRequest } from "../services/api";
 import {
   Box,
   Card,
   CardContent,
+  CircularProgress,
   LinearProgress,
   Typography,
 } from "@mui/material";
@@ -27,90 +30,6 @@ import {
   Cell,
   Legend,
 } from "recharts";
-
-const stats = [
-  {
-    title: "Tổng người dùng",
-    value: "1,234",
-    change: "+12.5%",
-    icon: People,
-    color: "#F59E0B",
-  },
-  {
-    title: "Prompts",
-    value: "456",
-    change: "+8.2%",
-    icon: Description,
-    color: "#FBBF24",
-  },
-  {
-    title: "Nghề nghiệp",
-    value: "89",
-    change: "+3.1%",
-    icon: Work,
-    color: "#6B7280",
-  },
-  {
-    title: "Khảo sát hoàn thành",
-    value: "2,345",
-    change: "+15.3%",
-    icon: Timeline,
-    color: "#9CA3AF",
-  },
-];
-
-const surveyData = [
-  { month: "T1", count: 120 },
-  { month: "T2", count: 145 },
-  { month: "T3", count: 180 },
-  { month: "T4", count: 210 },
-  { month: "T5", count: 195 },
-  { month: "T6", count: 230 },
-];
-
-const careerTrendData = [
-  { month: "T1", users: 80 },
-  { month: "T2", users: 95 },
-  { month: "T3", users: 120 },
-  { month: "T4", users: 140 },
-  { month: "T5", users: 135 },
-  { month: "T6", users: 160 },
-];
-
-const personalityData = [
-  { name: "Nhà lãnh đạo", value: 28, color: "#F59E0B" },
-  { name: "Nhà sáng tạo", value: 24, color: "#FBBF24" },
-  { name: "Nhà phân tích", value: 22, color: "#FCD34D" },
-  { name: "Nhà hỗ trợ", value: 26, color: "#9E9E9E" },
-];
-
-const recentActivities = [
-  {
-    user: "Nguyễn Văn A",
-    action: "đã hoàn thành khảo sát tính cách",
-    time: "2 phút trước",
-  },
-  {
-    user: "Admin",
-    action: 'đã thêm prompt mới "Phân tích kỹ năng"',
-    time: "15 phút trước",
-  },
-  {
-    user: "Trần Thị B",
-    action: "đã đăng ký tài khoản mới",
-    time: "1 giờ trước",
-  },
-  {
-    user: "Admin",
-    action: "đã cập nhật dữ liệu thị trường cho ngành IT",
-    time: "2 giờ trước",
-  },
-  {
-    user: "Lê Văn C",
-    action: "đã hoàn thành khảo sát nghề nghiệp",
-    time: "3 giờ trước",
-  },
-];
 
 const orange = "#F59E0B";
 const amber = "#FBBF24";
@@ -154,6 +73,82 @@ function ChartCard({
 }
 
 export function DashboardPage() {
+  const [stats, setStats] = useState<any[]>([]);
+  const [surveyData, setSurveyData] = useState<any[]>([]);
+  const [careerTrendData, setCareerTrendData] = useState<any[]>([]);
+  const [personalityData, setPersonalityData] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const getIconAndColor = (title: string) => {
+    switch (title) {
+      case "Tổng người dùng":
+        return { icon: People, color: "#F59E0B" };
+      case "Tài khoản hoạt động":
+        return { icon: People, color: "#10B981" };
+      case "Prompts":
+      case "Danh mục ngành":
+        return { icon: Description, color: "#FBBF24" };
+      case "Nghề nghiệp":
+        return { icon: Work, color: "#6B7280" };
+      case "Khảo sát hoàn thành":
+      default:
+        return { icon: Timeline, color: "#9CA3AF" };
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    apiRequest("/admin/dashboard/stats")
+      .then(res => {
+        if (res.success) {
+          // Map stats icons and colors
+          const mappedStats = (res.stats || []).map((s: any) => {
+            const extra = getIconAndColor(s.title);
+            return { ...s, ...extra };
+          });
+          setStats(mappedStats);
+
+          // Map surveyData (completed vs aborted)
+          const mappedSurvey = (res.surveyData || []).map((d: any) => ({
+            month: d.name,
+            count: d.completed
+          }));
+          setSurveyData(mappedSurvey);
+
+          // Map careerTrendData
+          const mappedCareers = (res.careerTrendData || []).map((d: any) => ({
+            month: d.career,
+            users: d.count
+          }));
+          setCareerTrendData(mappedCareers);
+
+          // Map personalityData with colors
+          const colors = [orange, amber, yellow, gray, "#8B5CF6", "#EC4899"];
+          const mappedPersonality = (res.personalityData || []).map((d: any, idx: number) => ({
+            ...d,
+            color: colors[idx % colors.length]
+          }));
+          setPersonalityData(mappedPersonality);
+
+          setRecentActivities(res.recentActivities || []);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Dashboard error:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <CircularProgress sx={{ color: orange }} />
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Box sx={{ mb: 2.5 }}>

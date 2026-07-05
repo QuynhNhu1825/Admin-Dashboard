@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCategories } from "../contexts/CategoriesContext";
 import {
   Add,
@@ -32,6 +32,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { apiRequest } from "../services/api";
 
 interface Career {
   id: string;
@@ -43,54 +44,6 @@ interface Career {
   ngayTao: string;
 }
 
-const mockCareers: Career[] = [
-  {
-    id: "1",
-    tenNghe: "Lập trình viên Front-end",
-    categoryId: "1",
-    moTa: "Phát triển giao diện người dùng cho các ứng dụng web và mobile.",
-    kyNangCanThiet: "HTML, CSS, JavaScript, React, TypeScript",
-    trangThai: 1,
-    ngayTao: "2024-01-15",
-  },
-  {
-    id: "2",
-    tenNghe: "Chuyên viên Marketing Digital",
-    categoryId: "2",
-    moTa: "Lên kế hoạch và triển khai các chiến dịch marketing trên các kênh kỹ thuật số.",
-    kyNangCanThiet: "SEO, SEM, Google Ads, Facebook Ads, Content Marketing",
-    trangThai: 1,
-    ngayTao: "2024-02-10",
-  },
-  {
-    id: "3",
-    tenNghe: "Chuyên viên Tài chính",
-    categoryId: "3",
-    moTa: "Phân tích tài chính, lập báo cáo và tư vấn đầu tư cho doanh nghiệp.",
-    kyNangCanThiet: "Kế toán, Phân tích tài chính, Excel, Power BI",
-    trangThai: 1,
-    ngayTao: "2024-03-05",
-  },
-  {
-    id: "4",
-    tenNghe: "Bác sĩ đa khoa",
-    categoryId: "4",
-    moTa: "Thăm khám, chẩn đoán và điều trị các bệnh thông thường cho bệnh nhân.",
-    kyNangCanThiet: "Y khoa, Giao tiếp, Phân tích lâm sàng, Chẩn đoán hình ảnh",
-    trangThai: 0,
-    ngayTao: "2024-03-20",
-  },
-  {
-    id: "5",
-    tenNghe: "Kỹ sư xây dựng",
-    categoryId: "6",
-    moTa: "Thiết kế, giám sát và thi công các công trình xây dựng dân dụng và công nghiệp.",
-    kyNangCanThiet: "AutoCAD, Revit, Kết cấu công trình, Quản lý dự án",
-    trangThai: 1,
-    ngayTao: "2024-04-01",
-  },
-];
-
 const orange = "#f59e0b";
 const orangeDark = "#d97706";
 const orangeLight = "#fef3c7";
@@ -101,7 +54,7 @@ const textMuted = "#6b7280";
 export function CareersPage() {
   const { categories } = useCategories();
 
-  const [careers, setCareers] = useState<Career[]>(mockCareers);
+  const [careers, setCareers] = useState<Career[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterTrangThai, setFilterTrangThai] = useState("");
@@ -116,6 +69,21 @@ export function CareersPage() {
     trangThai: 1,
   });
 
+  const refreshCareers = async () => {
+    try {
+      const res = await apiRequest("/admin/careers");
+      if (res.success) {
+        setCareers(res.careers || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    refreshCareers();
+  }, []);
+
   const getCategoryName = (id: string) =>
     categories.find((c) => c.id === id)?.tenDanhMuc ?? "—";
 
@@ -123,7 +91,7 @@ export function CareersPage() {
     const catName = getCategoryName(career.categoryId).toLowerCase();
 
     const matchSearch =
-      career.tenNghe.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (career.tenNghe || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       catName.includes(searchTerm.toLowerCase());
 
     const matchCategory = filterCategoryId
@@ -148,16 +116,18 @@ export function CareersPage() {
     });
   };
 
-  const handleAdd = () => {
-    const newCareer: Career = {
-      id: String(Date.now()),
-      ...formData,
-      ngayTao: new Date().toISOString().split("T")[0],
-    };
-
-    setCareers((prev) => [...prev, newCareer]);
-    setIsAddOpen(false);
-    resetForm();
+  const handleAdd = async () => {
+    try {
+      await apiRequest("/admin/careers", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+      await refreshCareers();
+      setIsAddOpen(false);
+      resetForm();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleEdit = (career: Career) => {
@@ -171,22 +141,31 @@ export function CareersPage() {
     });
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingCareer) return;
-
-    setCareers((prev) =>
-      prev.map((career) =>
-        career.id === editingCareer.id ? { ...career, ...formData } : career
-      )
-    );
-
-    setEditingCareer(null);
-    resetForm();
+    try {
+      await apiRequest(`/admin/careers/${editingCareer.id}`, {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+      await refreshCareers();
+      setEditingCareer(null);
+      resetForm();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa nghề nghiệp này?")) {
-      setCareers((prev) => prev.filter((career) => career.id !== id));
+      try {
+        await apiRequest(`/admin/careers/${id}`, {
+          method: "DELETE"
+        });
+        await refreshCareers();
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 

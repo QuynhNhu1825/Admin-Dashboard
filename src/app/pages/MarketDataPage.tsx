@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Add,
   Delete,
@@ -36,6 +36,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { apiRequest } from "../services/api";
 
 interface DuLieuThiTruong {
   maDL: string;
@@ -46,36 +47,6 @@ interface DuLieuThiTruong {
   metaData: string;
   ngayCapNhat: string;
 }
-
-const mockData: DuLieuThiTruong[] = [
-  {
-    maDL: "1",
-    maNghe: "101",
-    loai: "ChungChi",
-    tieuDe: "AWS Certified Developer",
-    giaTri: "Quan trọng",
-    metaData: '{"level": "Advanced", "provider": "AWS"}',
-    ngayCapNhat: "2024-01-15T08:00:00Z",
-  },
-  {
-    maDL: "2",
-    maNghe: "101",
-    loai: "Luong",
-    tieuDe: "Mức lương Junior",
-    giaTri: "15 - 25 Triệu",
-    metaData: '{"min": 15000000, "max": 25000000, "currency": "VND"}',
-    ngayCapNhat: "2024-01-14T08:00:00Z",
-  },
-  {
-    maDL: "3",
-    maNghe: "102",
-    loai: "CoHoi",
-    tieuDe: "Nhu cầu tuyển dụng",
-    giaTri: "Cao",
-    metaData: '{"growthRate": 0.25, "trend": "up"}',
-    ngayCapNhat: "2024-01-13T08:00:00Z",
-  },
-];
 
 const initialFormState = {
   maNghe: "",
@@ -93,7 +64,7 @@ const textMain = "#111827";
 const textMuted = "#6b7280";
 
 export function MarketDataPage() {
-  const [data, setData] = useState<DuLieuThiTruong[]>(mockData);
+  const [data, setData] = useState<DuLieuThiTruong[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] =
     useState<"all" | "Luong" | "ChungChi" | "CoHoi">("all");
@@ -101,27 +72,44 @@ export function MarketDataPage() {
   const [editingData, setEditingData] = useState<DuLieuThiTruong | null>(null);
   const [formData, setFormData] = useState(initialFormState);
 
+  const refreshData = async () => {
+    try {
+      const res = await apiRequest("/admin/market-data");
+      if (res.success) {
+        setData(res.data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
+
   const filteredData = data.filter((item) => {
     const matchesSearch =
-      item.maNghe.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.tieuDe.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.giaTri.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.maNghe || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.tieuDe || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.giaTri || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesTab = activeTab === "all" || item.loai === activeTab;
 
     return matchesSearch && matchesTab;
   });
 
-  const handleAdd = () => {
-    const newData: DuLieuThiTruong = {
-      maDL: String(Date.now()),
-      ...formData,
-      ngayCapNhat: new Date().toISOString(),
-    };
-
-    setData((prev) => [...prev, newData]);
-    setIsAddDialogOpen(false);
-    setFormData(initialFormState);
+  const handleAdd = async () => {
+    try {
+      await apiRequest("/admin/market-data", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+      await refreshData();
+      setIsAddDialogOpen(false);
+      setFormData(initialFormState);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleEdit = (item: DuLieuThiTruong) => {
@@ -135,28 +123,31 @@ export function MarketDataPage() {
     });
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingData) return;
-
-    setData((prev) =>
-      prev.map((item) =>
-        item.maDL === editingData.maDL
-          ? {
-              ...item,
-              ...formData,
-              ngayCapNhat: new Date().toISOString(),
-            }
-          : item
-      )
-    );
-
-    setEditingData(null);
-    setFormData(initialFormState);
+    try {
+      await apiRequest(`/admin/market-data/${editingData.maDL}`, {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+      await refreshData();
+      setEditingData(null);
+      setFormData(initialFormState);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa dữ liệu này?")) {
-      setData((prev) => prev.filter((item) => item.maDL !== id));
+      try {
+        await apiRequest(`/admin/market-data/${id}`, {
+          method: "DELETE"
+        });
+        await refreshData();
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 

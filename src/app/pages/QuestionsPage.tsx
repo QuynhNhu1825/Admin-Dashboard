@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search } from "@mui/icons-material";
 import {
   Box,
@@ -15,6 +15,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { apiRequest } from "../services/api";
 
 interface Question {
   id: string;
@@ -23,38 +24,27 @@ interface Question {
   ngayTao: string;
 }
 
-const mockQuestions: Question[] = [
-  {
-    id: "1",
-    noiDungCH: "Bạn thường làm việc tốt hơn khi nào?",
-    cauTL: '["Một mình", "Theo nhóm", "Kết hợp cả hai"]',
-    ngayTao: "2024-01-15",
-  },
-  {
-    id: "2",
-    noiDungCH: "Đánh giá mức độ kỹ năng lập trình của bạn",
-    cauTL: '{"type": "rating", "min": 1, "max": 5}',
-    ngayTao: "2024-01-14",
-  },
-  {
-    id: "3",
-    noiDungCH: "Bạn quan tâm đến lĩnh vực nào nhất?",
-    cauTL: '["Công nghệ", "Marketing", "Tài chính", "Khác"]',
-    ngayTao: "2024-01-13",
-  },
-];
-
 const orange = "#f59e0b";
 const borderColor = "#e5e7eb";
 const textMain = "#111827";
 const textMuted = "#6b7280";
 
 export function QuestionsPage() {
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Lọc danh sách câu hỏi theo từ khóa tìm kiếm
-  const filteredQuestions = mockQuestions.filter((question) =>
-    question.noiDungCH.toLowerCase().includes(searchTerm.toLowerCase())
+  useEffect(() => {
+    apiRequest("/admin/questions")
+      .then(res => {
+        if (res.success) {
+          setQuestions(res.questions || []);
+        }
+      })
+      .catch(err => console.error(err));
+  }, []);
+
+  const filteredQuestions = questions.filter((question) =>
+    (question.noiDungCH || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

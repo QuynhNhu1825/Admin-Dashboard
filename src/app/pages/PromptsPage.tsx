@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Add, Delete, Edit, Search } from "@mui/icons-material";
 import {
   Box,
@@ -26,6 +26,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { apiRequest } from "../services/api";
 
 interface Prompt {
   id: string;
@@ -38,31 +39,6 @@ interface Prompt {
   status: string;
   createdAt: string;
 }
-
-const mockPrompts: Prompt[] = [
-  {
-    id: "1",
-    code: "PMT_MBTI_01",
-    title: "Phân tích tính cách MBTI",
-    description: "Dùng để phân tích nhóm tính cách",
-    content: "Phân tích tính cách của người dùng dựa trên các câu trả lời về MBTI...",
-    version: "1.0.0",
-    inputVariables: "{answers}",
-    status: "active",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    code: "PMT_SKILL_01",
-    title: "Đánh giá kỹ năng nghề nghiệp",
-    description: "Map kỹ năng với O*NET",
-    content: "Đánh giá và phân tích các kỹ năng cần thiết cho từng nghề nghiệp...",
-    version: "1.1.0",
-    inputVariables: "{skills}",
-    status: "active",
-    createdAt: "2024-01-14",
-  },
-];
 
 const initialFormState = {
   code: "",
@@ -82,29 +58,46 @@ const textMain = "#111827";
 const textMuted = "#6b7280";
 
 export function PromptsPage() {
-  const [prompts, setPrompts] = useState<Prompt[]>(mockPrompts);
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [formData, setFormData] = useState(initialFormState);
 
+  const refreshPrompts = async () => {
+    try {
+      const res = await apiRequest("/admin/prompts");
+      if (res.success) {
+        setPrompts(res.prompts || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    refreshPrompts();
+  }, []);
+
   const filteredPrompts = prompts.filter(
     (prompt) =>
-      prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prompt.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prompt.description.toLowerCase().includes(searchTerm.toLowerCase())
+      (prompt.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (prompt.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (prompt.description || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAdd = () => {
-    const newPrompt: Prompt = {
-      id: String(Date.now()),
-      ...formData,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-
-    setPrompts((prev) => [...prev, newPrompt]);
-    setIsAddDialogOpen(false);
-    setFormData(initialFormState);
+  const handleAdd = async () => {
+    try {
+      await apiRequest("/admin/prompts", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+      await refreshPrompts();
+      setIsAddDialogOpen(false);
+      setFormData(initialFormState);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleEdit = (prompt: Prompt) => {
@@ -120,22 +113,31 @@ export function PromptsPage() {
     });
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingPrompt) return;
-
-    setPrompts((prev) =>
-      prev.map((prompt) =>
-        prompt.id === editingPrompt.id ? { ...prompt, ...formData } : prompt
-      )
-    );
-
-    setEditingPrompt(null);
-    setFormData(initialFormState);
+    try {
+      await apiRequest(`/admin/prompts/${editingPrompt.id}`, {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+      await refreshPrompts();
+      setEditingPrompt(null);
+      setFormData(initialFormState);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa prompt này?")) {
-      setPrompts((prev) => prev.filter((prompt) => prompt.id !== id));
+      try {
+        await apiRequest(`/admin/prompts/${id}`, {
+          method: "DELETE"
+        });
+        await refreshPrompts();
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
