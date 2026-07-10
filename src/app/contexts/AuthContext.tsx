@@ -10,6 +10,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -30,15 +31,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   });
 
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem("admin_token");
+  });
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const loggedUser = await loginAdmin(email, password);
-      if (!loggedUser) {
+      const result = await loginAdmin(email, password);
+      if (!result) {
         return false;
       }
 
-      localStorage.setItem("admin_user", JSON.stringify(loggedUser));
-      setUser(loggedUser);
+      localStorage.setItem("admin_user", JSON.stringify(result.user));
+      localStorage.setItem("admin_token", result.token);
+      setUser(result.user);
+      setToken(result.token);
       return true;
     } catch (error) {
       console.error("Lỗi đăng nhập admin:", error);
@@ -48,16 +55,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("admin_user");
+    localStorage.removeItem("admin_token");
     setUser(null);
+    setToken(null);
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        token,
         login,
         logout,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user && !!token,
       }}
     >
       {children}

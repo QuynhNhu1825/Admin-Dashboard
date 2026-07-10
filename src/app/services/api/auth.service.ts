@@ -7,14 +7,19 @@ export interface LoginUser {
   role: string;
 }
 
+export interface LoginResult {
+  user: LoginUser;
+  token: string;
+}
+
 export async function loginAdmin(
   email: string,
   password: string
-): Promise<LoginUser | null> {
+): Promise<LoginResult | null> {
   const response = await fetch(`${API_BASE}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: email, password }),
+    body: JSON.stringify({ email, password }),
   });
 
   if (!response.ok) {
@@ -31,10 +36,18 @@ export async function loginAdmin(
     return null;
   }
 
+  if (!data.token) {
+    console.error("No token returned from server");
+    return null;
+  }
+
   return {
-    id: data.user.id.toString(),
-    email: data.user.email,
-    name: data.profile?.fullName || "Admin User",
-    role: data.user.role,
+    user: {
+      id: data.user.id.toString(),
+      email: data.user.email,
+      name: data.profile?.fullName || "Admin User",
+      role: data.user.role,
+    },
+    token: data.token,
   };
 }

@@ -160,17 +160,6 @@ export function LoginPage() {
               Đăng nhập
             </Button>
           </Box>
-
-          <Typography
-            sx={{
-              mt: 2.5,
-              textAlign: "center",
-              fontSize: 12,
-              color: textMuted,
-            }}
-          >
-            Demo: Nhập bất kỳ email và mật khẩu nào để đăng nhập
-          </Typography>
         </CardContent>
       </Card>
     </Box>

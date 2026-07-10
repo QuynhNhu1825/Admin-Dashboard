@@ -1,21 +1,14 @@
 import { API_BASE } from "./config";
 
 export async function apiRequest(endpoint: string, options: RequestInit = {}) {
-  const userStr = localStorage.getItem("admin_user");
-  let userId = "";
-  if (userStr) {
-    try {
-      const u = JSON.parse(userStr);
-      userId = u.id || "";
-    } catch (e) {}
-  }
+  const token = localStorage.getItem("admin_token");
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
 
-  if (userId) {
-    headers["x-user-id"] = userId.toString();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -32,6 +25,15 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
     try {
       errJson = JSON.parse(errText);
     } catch (e) {}
+    
+    // Handle unauthorized errors
+    if (response.status === 401) {
+      localStorage.removeItem("admin_user");
+      localStorage.removeItem("admin_token");
+      window.location.href = "/login";
+      throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại");
+    }
+    
     throw new Error(errJson?.message || errText || "API Error");
   }
 
