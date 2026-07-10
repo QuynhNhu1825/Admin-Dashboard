@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { apiRequest } from "../services/api";
+import { useAuth } from "./AuthContext";
 
 export interface Category {
   id: string;
@@ -19,6 +20,7 @@ const CategoriesContext = createContext<CategoriesContextType | null>(null);
 
 export function CategoriesProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
+  const { isAuthenticated } = useAuth();
 
   const refreshCategories = async () => {
     try {
@@ -32,8 +34,12 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    refreshCategories();
-  }, []);
+    if (isAuthenticated) {
+      refreshCategories();
+    } else {
+      setCategories([]);
+    }
+  }, [isAuthenticated]);
 
   const activeCategories = categories.filter(
     (category) => category.trangThai === 1

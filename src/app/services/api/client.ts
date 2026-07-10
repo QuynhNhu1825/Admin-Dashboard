@@ -30,7 +30,9 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
     if (response.status === 401) {
       localStorage.removeItem("admin_user");
       localStorage.removeItem("admin_token");
-      window.location.href = "/login";
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
       throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại");
     }
     
