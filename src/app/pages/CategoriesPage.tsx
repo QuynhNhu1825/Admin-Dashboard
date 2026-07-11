@@ -30,9 +30,10 @@ import { useCategories, type Category } from "../contexts/CategoriesContext";
 import { apiRequest } from "../services/api";
 
 const initialForm = {
-  tenDanhMuc: "",
-  moTa: "",
-  trangThai: 1,
+  tenNganh: "",
+  truong: "",
+  diemChuan: "",
+  link: "",
 };
 
 const orange = "#f59e0b";
@@ -51,8 +52,8 @@ export function CategoriesPage() {
 
   const filtered = categories.filter(
     (category) =>
-      (category.tenDanhMuc || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (category.moTa || "").toLowerCase().includes(searchTerm.toLowerCase())
+      (category.tenNganh || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (category.truong || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleAdd = async () => {
@@ -72,9 +73,10 @@ export function CategoriesPage() {
   const handleEdit = (category: Category) => {
     setEditingItem(category);
     setFormData({
-      tenDanhMuc: category.tenDanhMuc,
-      moTa: category.moTa,
-      trangThai: category.trangThai,
+      tenNganh: category.tenNganh,
+      truong: category.truong,
+      diemChuan: category.diemChuan,
+      link: category.link,
     });
   };
 
@@ -96,7 +98,7 @@ export function CategoriesPage() {
   const handleDelete = async (id: string) => {
     if (
       confirm(
-        "Bạn có chắc chắn muốn xóa danh mục này? Các nghề nghiệp liên kết sẽ mất liên kết."
+        "Bạn có chắc chắn muốn xóa ngành/trường học này?"
       )
     ) {
       try {
@@ -110,19 +112,19 @@ export function CategoriesPage() {
     }
   };
 
-  const isFormValid = formData.tenDanhMuc.trim() && formData.moTa.trim();
+  const isFormValid = formData.tenNganh.trim() && formData.truong.trim();
 
   const renderForm = () => (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.2, mt: 1 }}>
       <TextField
         fullWidth
         size="small"
-        label="Tên danh mục"
+        label="Tên ngành"
         required
-        placeholder="VD: Công nghệ thông tin"
-        value={formData.tenDanhMuc}
+        placeholder="VD: Khoa học Xã hội và Nhân văn"
+        value={formData.tenNganh}
         onChange={(e) =>
-          setFormData({ ...formData, tenDanhMuc: e.target.value })
+          setFormData({ ...formData, tenNganh: e.target.value })
         }
         sx={inputSx}
       />
@@ -130,32 +132,33 @@ export function CategoriesPage() {
       <TextField
         fullWidth
         size="small"
-        label="Mô tả"
+        label="Trường học"
         required
-        multiline
-        rows={3}
-        placeholder="Mô tả về danh mục ngành nghề này..."
-        value={formData.moTa}
-        onChange={(e) => setFormData({ ...formData, moTa: e.target.value })}
+        placeholder="VD: Trường Đại học Bách khoa"
+        value={formData.truong}
+        onChange={(e) => setFormData({ ...formData, truong: e.target.value })}
         sx={inputSx}
       />
 
-      <FormControl fullWidth size="small" sx={inputSx}>
-        <InputLabel>Trạng thái</InputLabel>
-        <Select
-          label="Trạng thái"
-          value={formData.trangThai}
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              trangThai: Number(e.target.value),
-            })
-          }
-        >
-          <MenuItem value={1}>Hoạt động</MenuItem>
-          <MenuItem value={0}>Khóa</MenuItem>
-        </Select>
-      </FormControl>
+      <TextField
+        fullWidth
+        size="small"
+        label="Điểm chuẩn"
+        placeholder="VD: 25.5"
+        value={formData.diemChuan}
+        onChange={(e) => setFormData({ ...formData, diemChuan: e.target.value })}
+        sx={inputSx}
+      />
+
+      <TextField
+        fullWidth
+        size="small"
+        label="Link tuyển sinh / chính thức"
+        placeholder="VD: https://ts.hust.edu.vn"
+        value={formData.link}
+        onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+        sx={inputSx}
+      />
     </Box>
   );
 
@@ -367,7 +370,7 @@ export function CategoriesPage() {
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: "#f9fafb" }}>
-                  {["Mã", "Tên danh mục", "Mô tả", "Trạng thái", "Thao tác"].map(
+                  {["Mã", "Tên ngành", "Trường học", "Điểm chuẩn", "Link thông tin", "Thao tác"].map(
                     (head) => (
                       <TableCell
                         key={head}
@@ -421,38 +424,56 @@ export function CategoriesPage() {
                           color: textMain,
                         }}
                       >
-                        {category.tenDanhMuc}
+                        {category.tenNganh}
                       </Typography>
                     </TableCell>
 
                     <TableCell>
                       <Typography
-                        title={category.moTa}
+                        title={category.truong}
                         sx={{
-                          maxWidth: 360,
+                          maxWidth: 260,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
-                          color: textMuted,
+                          color: textMain,
                           fontSize: 14,
                         }}
                       >
-                        {category.moTa}
+                        {category.truong}
                       </Typography>
                     </TableCell>
 
                     <TableCell>
-                      <Chip
-                        label={category.trangThai === 1 ? "Hoạt động" : "Khóa"}
-                        size="small"
+                      <Typography
                         sx={{
-                          bgcolor:
-                            category.trangThai === 1 ? "#dcfce7" : "#fee2e2",
-                          color:
-                            category.trangThai === 1 ? "#15803d" : "#b91c1c",
-                          fontWeight: 700,
+                          color: textMuted,
+                          fontSize: 14,
+                          fontWeight: 500,
                         }}
-                      />
+                      >
+                        {category.diemChuan}
+                      </Typography>
+                    </TableCell>
+
+                    <TableCell>
+                      {category.link ? (
+                        <a
+                          href={category.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            color: orange,
+                            textDecoration: "none",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Xem liên kết
+                        </a>
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
 
                     <TableCell align="right">

@@ -4,9 +4,12 @@ import { useAuth } from "./AuthContext";
 
 export interface Category {
   id: string;
-  tenDanhMuc: string;
-  moTa: string;
-  trangThai: number; // 1: Hoạt động, 0: Khóa
+  tenNganh: string;
+  truong: string;
+  diemChuan: string;
+  link: string;
+  nam: string;
+  xuHuong: string;
 }
 
 interface CategoriesContextType {
@@ -41,9 +44,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated]);
 
-  const activeCategories = categories.filter(
-    (category) => category.trangThai === 1
-  );
+  const activeCategories = categories;
 
   return (
     <CategoriesContext.Provider

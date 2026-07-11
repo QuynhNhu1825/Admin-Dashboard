@@ -85,7 +85,7 @@ export function CareersPage() {
   }, []);
 
   const getCategoryName = (id: string) =>
-    categories.find((c) => c.id === id)?.tenDanhMuc ?? "—";
+    categories.find((c) => c.id === id)?.tenNganh ?? "—";
 
   const filtered = careers.filter((career) => {
     const catName = getCategoryName(career.categoryId).toLowerCase();
@@ -206,7 +206,7 @@ export function CareersPage() {
           >
             {categories.map((cat) => (
               <MenuItem key={cat.id} value={cat.id}>
-                {cat.tenDanhMuc} {cat.trangThai === 0 ? "(Khóa)" : ""}
+                {cat.tenNganh} ({cat.truong})
               </MenuItem>
             ))}
           </Select>
@@ -453,7 +453,7 @@ export function CareersPage() {
                 <MenuItem value="">Tất cả danh mục</MenuItem>
                 {categories.map((cat) => (
                   <MenuItem key={cat.id} value={cat.id}>
-                    {cat.tenDanhMuc}
+                    {cat.tenNganh} ({cat.truong})
                   </MenuItem>
                 ))}
               </Select>
