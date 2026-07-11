@@ -534,26 +534,32 @@ export function MarketDataPage() {
               overflow: "hidden",
             }}
           >
-            <Table>
+            <Table sx={{ tableLayout: "fixed", width: "100%" }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: "#f9fafb" }}>
-                  {["Mã nghề", "Loại", "Tiêu đề", "Giá trị", "Cập nhật", "Thao tác"].map(
-                    (head) => (
-                      <TableCell
-                        key={head}
-                        align={head === "Thao tác" ? "right" : "left"}
-                        sx={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "#4b5563",
-                          borderBottom: `1px solid ${borderColor}`,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {head}
-                      </TableCell>
-                    )
-                  )}
+                  {[
+                    { name: "Mã nghề", width: "10%" },
+                    { name: "Loại", width: "15%" },
+                    { name: "Tiêu đề", width: "25%" },
+                    { name: "Giá trị", width: "35%" },
+                    { name: "Cập nhật", width: "15%" },
+                    { name: "Thao tác", width: "100px" }
+                  ].map((col) => (
+                    <TableCell
+                      key={col.name}
+                      align={col.name === "Thao tác" ? "right" : "left"}
+                      sx={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#4b5563",
+                        borderBottom: `1px solid ${borderColor}`,
+                        whiteSpace: "nowrap",
+                        width: col.width,
+                      }}
+                    >
+                      {col.name}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
 
@@ -571,13 +577,13 @@ export function MarketDataPage() {
                       },
                     }}
                   >
-                    <TableCell>
+                    <TableCell sx={{ width: "10%" }}>
                       <Typography sx={{ fontSize: 14, fontWeight: 700, color: textMain }}>
                         {item.maNghe}
                       </Typography>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell sx={{ width: "15%" }}>
                       <Chip
                         icon={getTypeIcon(item.loai) as React.ReactElement}
                         label={getTypeLabel(item.loai)}
@@ -593,31 +599,44 @@ export function MarketDataPage() {
                       />
                     </TableCell>
 
-                    <TableCell>
-                      <Typography sx={{ fontSize: 14, color: textMain, fontWeight: 600 }}>
+                    <TableCell sx={{ width: "25%", minWidth: 150 }}>
+                      <Typography sx={{ fontSize: 14, color: textMain, fontWeight: 600, whiteSpace: "normal" }}>
                         {item.tieuDe}
                       </Typography>
                     </TableCell>
 
-                    <TableCell>
-                      <Chip
-                        label={item.giaTri}
-                        size="small"
-                        sx={{
-                          bgcolor: "#f3f4f6",
-                          color: textMain,
-                          fontWeight: 700,
-                        }}
-                      />
+                    <TableCell sx={{ width: "35%", minWidth: 200 }}>
+                      {item.loai === "Luong" ? (
+                        <Chip
+                          label={item.giaTri}
+                          size="small"
+                          sx={{
+                            bgcolor: "#e2f8ec",
+                            color: "#15803d",
+                            fontWeight: 700,
+                            whiteSpace: "normal",
+                            height: "auto",
+                            "& .MuiChip-label": {
+                              whiteSpace: "normal",
+                              display: "block",
+                              py: 0.5
+                            }
+                          }}
+                        />
+                      ) : (
+                        <Typography sx={{ fontSize: 14, color: textMain, whiteSpace: "normal" }}>
+                          {item.giaTri}
+                        </Typography>
+                      )}
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell sx={{ width: "15%", whiteSpace: "nowrap" }}>
                       <Typography sx={{ fontSize: 13, color: textMuted }}>
                         {new Date(item.ngayCapNhat).toLocaleDateString("vi-VN")}
                       </Typography>
                     </TableCell>
 
-                    <TableCell align="right">
+                    <TableCell align="right" sx={{ width: "100px" }}>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <Button
                           variant="text"
