@@ -16,6 +16,7 @@ import {
   MenuItem,
   Paper,
   Select,
+  Snackbar,
   Stack,
   Table,
   TableBody,
@@ -25,6 +26,7 @@ import {
   TableRow,
   TextField,
   Typography,
+  Alert,
 } from "@mui/material";
 import { apiRequest } from "../services/api";
 
@@ -63,6 +65,7 @@ export function PromptsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [formData, setFormData] = useState(initialFormState);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const refreshPrompts = async () => {
     try {
@@ -88,15 +91,21 @@ export function PromptsPage() {
 
   const handleAdd = async () => {
     try {
-      await apiRequest("/admin/prompts", {
+      const res = await apiRequest("/admin/prompts", {
         method: "POST",
         body: JSON.stringify(formData)
       });
-      await refreshPrompts();
-      setIsAddDialogOpen(false);
-      setFormData(initialFormState);
+      if (res.success) {
+        await refreshPrompts();
+        setIsAddDialogOpen(false);
+        setFormData(initialFormState);
+        setSnackbar({ open: true, message: "Thêm Prompt thành công!", severity: "success" });
+      } else {
+        setSnackbar({ open: true, message: res.message || "Thêm Prompt thất bại", severity: "error" });
+      }
     } catch (err) {
       console.error(err);
+      setSnackbar({ open: true, message: "Đã xảy ra lỗi khi thêm Prompt", severity: "error" });
     }
   };
 
@@ -116,27 +125,39 @@ export function PromptsPage() {
   const handleUpdate = async () => {
     if (!editingPrompt) return;
     try {
-      await apiRequest(`/admin/prompts/${editingPrompt.id}`, {
+      const res = await apiRequest(`/admin/prompts/${editingPrompt.id}`, {
         method: "PUT",
         body: JSON.stringify(formData)
       });
-      await refreshPrompts();
-      setEditingPrompt(null);
-      setFormData(initialFormState);
+      if (res.success) {
+        await refreshPrompts();
+        setEditingPrompt(null);
+        setFormData(initialFormState);
+        setSnackbar({ open: true, message: "Cập nhật Prompt thành công!", severity: "success" });
+      } else {
+        setSnackbar({ open: true, message: res.message || "Cập nhật Prompt thất bại", severity: "error" });
+      }
     } catch (err) {
       console.error(err);
+      setSnackbar({ open: true, message: "Đã xảy ra lỗi khi cập nhật Prompt", severity: "error" });
     }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa prompt này?")) {
       try {
-        await apiRequest(`/admin/prompts/${id}`, {
+        const res = await apiRequest(`/admin/prompts/${id}`, {
           method: "DELETE"
         });
-        await refreshPrompts();
+        if (res.success) {
+          await refreshPrompts();
+          setSnackbar({ open: true, message: "Xóa Prompt thành công!", severity: "success" });
+        } else {
+          setSnackbar({ open: true, message: res.message || "Xóa Prompt thất bại", severity: "error" });
+        }
       } catch (err) {
         console.error(err);
+        setSnackbar({ open: true, message: "Đã xảy ra lỗi khi xóa Prompt", severity: "error" });
       }
     }
   };
@@ -598,7 +619,20 @@ export function PromptsPage() {
           </TableContainer>
         </CardContent>
       </Card>
-    </Box>
+    </Box>,
+    snackbar: Snackbar(
+      open: snackbar.open,
+      autoHideDuration: 4000,
+      onClose: () => setSnackbar({ ...snackbar, open: false }),
+      anchorOrigin: { vertical: "bottom", horizontal: "center" } as const,
+      child: Alert(
+        onClose: () => setSnackbar({ ...snackbar, open: false }),
+        severity={snackbar.severity},
+        sx: { width: "100%", borderRadius: "10px", fontWeight: 600 },
+      >
+        {snackbar.message}
+      </Alert>
+    ),
   );
 }
 
