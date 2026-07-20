@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Add, Delete, Edit, Search } from "@mui/icons-material";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -17,6 +18,7 @@ import {
   Paper,
   Select,
   Stack,
+  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -32,7 +34,6 @@ import { apiRequest } from "../services/api";
 const initialForm = {
   tenNganh: "",
   truong: "",
-  diemChuan: "",
   link: "",
 };
 
@@ -49,6 +50,7 @@ export function CategoriesPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Category | null>(null);
   const [formData, setFormData] = useState(initialForm);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' | 'warning' });
 
   const filtered = categories.filter(
     (category) =>
@@ -65,8 +67,10 @@ export function CategoriesPage() {
       await refreshCategories();
       setIsAddOpen(false);
       setFormData(initialForm);
+      setNotification({ open: true, message: 'Thêm danh mục thành công!', severity: 'success' });
     } catch (err) {
       console.error(err);
+      setNotification({ open: true, message: 'Thêm danh mục thất bại!', severity: 'error' });
     }
   };
 
@@ -75,7 +79,6 @@ export function CategoriesPage() {
     setFormData({
       tenNganh: category.tenNganh,
       truong: category.truong,
-      diemChuan: category.diemChuan,
       link: category.link,
     });
   };
@@ -90,8 +93,10 @@ export function CategoriesPage() {
       await refreshCategories();
       setEditingItem(null);
       setFormData(initialForm);
+      setNotification({ open: true, message: 'Cập nhật danh mục thành công!', severity: 'success' });
     } catch (err) {
       console.error(err);
+      setNotification({ open: true, message: 'Cập nhật danh mục thất bại!', severity: 'error' });
     }
   };
 
@@ -106,8 +111,10 @@ export function CategoriesPage() {
           method: "DELETE"
         });
         await refreshCategories();
+        setNotification({ open: true, message: 'Xóa danh mục thành công!', severity: 'success' });
       } catch (err) {
         console.error(err);
+        setNotification({ open: true, message: 'Xóa danh mục thất bại!', severity: 'error' });
       }
     }
   };
@@ -143,16 +150,6 @@ export function CategoriesPage() {
       <TextField
         fullWidth
         size="small"
-        label="Điểm chuẩn"
-        placeholder="VD: 25.5"
-        value={formData.diemChuan}
-        onChange={(e) => setFormData({ ...formData, diemChuan: e.target.value })}
-        sx={inputSx}
-      />
-
-      <TextField
-        fullWidth
-        size="small"
         label="Link tuyển sinh / chính thức"
         placeholder="VD: https://ts.hust.edu.vn"
         value={formData.link}
@@ -164,6 +161,19 @@ export function CategoriesPage() {
 
   return (
     <Box>
+      <Snackbar 
+        open={notification.open} 
+        autoHideDuration={4000} 
+        onClose={() => setNotification({ ...notification, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setNotification({ ...notification, open: false })} 
+          severity={notification.severity} 
+          sx={{ width: '100%' }}>
+          {notification.message}
+        </Alert>
+      </Snackbar>
       <Box
         sx={{
           mb: 2.5,
@@ -315,13 +325,13 @@ export function CategoriesPage() {
           </Typography>
 
           <Typography sx={{ fontSize: 14, color: textMuted, mt: 0.5, mb: 2 }}>
-            Tìm kiếm theo tên hoặc mô tả
+            Tìm kiếm theo tên danh mục hoặc tên trường
           </Typography>
 
           <TextField
             fullWidth
             size="small"
-            placeholder="Tìm kiếm danh mục..."
+            placeholder="Tìm kiếm..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             slotProps={{
@@ -370,7 +380,7 @@ export function CategoriesPage() {
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: "#f9fafb" }}>
-                  {["Mã", "Tên ngành", "Trường học", "Điểm chuẩn", "Link thông tin", "Thao tác"].map(
+                  {["Mã", "Tên ngành", "Trường học", "Link thông tin", "Thao tác"].map(
                     (head) => (
                       <TableCell
                         key={head}
@@ -445,18 +455,6 @@ export function CategoriesPage() {
                     </TableCell>
 
                     <TableCell>
-                      <Typography
-                        sx={{
-                          color: textMuted,
-                          fontSize: 14,
-                          fontWeight: 500,
-                        }}
-                      >
-                        {category.diemChuan}
-                      </Typography>
-                    </TableCell>
-
-                    <TableCell>
                       {category.link ? (
                         <a
                           href={category.link}
@@ -518,7 +516,7 @@ export function CategoriesPage() {
 
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={5}> {/* Adjusted colspan from 5 to 4 */}
                       <Box sx={{ py: 5, textAlign: "center" }}>
                         <Typography sx={{ color: textMuted }}>
                           Không tìm thấy danh mục nào.

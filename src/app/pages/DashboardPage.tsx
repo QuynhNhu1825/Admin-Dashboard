@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { apiRequest } from "../services/api";
+// 🚀 ĐIỀU CHỈNH ĐƯỜNG DẪN IMPORT API CHO ĐÚNG VỚI VỊ TRÍ MỚI TRONG FOLDER ADMIN
+import { apiRequest } from "../services/api"; 
 import {
   Box,
   Card,
@@ -11,9 +12,7 @@ import {
 import {
   People,
   Description,
-  Work,
   Timeline,
-  TrendingUp,
 } from "@mui/icons-material";
 import {
   BarChart,
@@ -39,15 +38,22 @@ const borderColor = "#e5e7eb";
 const textMain = "#111827";
 const textMuted = "#6b7280";
 
-function ChartCard({
-  title,
-  description,
-  children,
-}: {
+// Định nghĩa interfaces rõ ràng thay vì dùng anys để tối ưu TypeScript
+interface StatItem {
+  title: string;
+  value: string | number;
+  change: string;
+  color?: string;
+  icon?: any;
+}
+
+interface ChartCardProps {
   title: string;
   description: string;
   children: React.ReactNode;
-}) {
+}
+
+function ChartCard({ title, description, children }: ChartCardProps) {
   return (
     <Card
       elevation={0}
@@ -73,13 +79,14 @@ function ChartCard({
 }
 
 export function DashboardPage() {
-  const [stats, setStats] = useState<any[]>([]);
+  const [stats, setStats] = useState<StatItem[]>([]);
   const [surveyData, setSurveyData] = useState<any[]>([]);
   const [careerTrendData, setCareerTrendData] = useState<any[]>([]);
   const [personalityData, setPersonalityData] = useState<any[]>([]);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Đã loại bỏ hoàn toàn logic liên quan đến "Danh mục ngành" và "Nghề nghiệp" ở đây
   const getIconAndColor = (title: string) => {
     switch (title) {
       case "Tổng người dùng":
@@ -87,10 +94,7 @@ export function DashboardPage() {
       case "Tài khoản hoạt động":
         return { icon: People, color: "#10B981" };
       case "Prompts":
-      case "Danh mục ngành":
         return { icon: Description, color: "#FBBF24" };
-      case "Nghề nghiệp":
-        return { icon: Work, color: "#6B7280" };
       case "Khảo sát hoàn thành":
       default:
         return { icon: Timeline, color: "#9CA3AF" };
@@ -102,24 +106,29 @@ export function DashboardPage() {
     apiRequest("/admin/dashboard/stats")
       .then(res => {
         if (res.success) {
+          // Lọc bỏ hẳn "Danh mục ngành" và "Nghề nghiệp" nếu API trả về trong mảng stats
+          const filteredStats = (res.stats || []).filter(
+            (s: any) => s.title !== "Danh mục ngành" && s.title !== "Nghề nghiệp"
+          );
+
           // Map stats icons and colors
-          const mappedStats = (res.stats || []).map((s: any) => {
+          const mappedStats = filteredStats.map((s: any) => {
             const extra = getIconAndColor(s.title);
             return { ...s, ...extra };
           });
           setStats(mappedStats);
 
-          // Map surveyData (completed vs aborted)
+          // Map surveyData (completed)
           const mappedSurvey = (res.surveyData || []).map((d: any) => ({
-            month: d.name,
-            count: d.completed
+            month: d.name || d.month,
+            count: d.completed || d.count || 0
           }));
           setSurveyData(mappedSurvey);
 
           // Map careerTrendData
           const mappedCareers = (res.careerTrendData || []).map((d: any) => ({
-            month: d.career,
-            users: d.count
+            month: d.career || d.month,
+            users: d.count || d.users || 0
           }));
           setCareerTrendData(mappedCareers);
 
@@ -168,6 +177,7 @@ export function DashboardPage() {
         </Typography>
       </Box>
 
+      {/* Các ô chỉ số đếm tổng quan */}
       <Box
         sx={{
           display: "grid",
@@ -223,7 +233,7 @@ export function DashboardPage() {
                       justifyContent: "center",
                     }}
                   >
-                    <Icon sx={{ color: "#fff", fontSize: 20 }} />
+                    {Icon && <Icon sx={{ color: "#fff", fontSize: 20 }} />}
                   </Box>
                 </Box>
 
@@ -247,6 +257,7 @@ export function DashboardPage() {
         })}
       </Box>
 
+      {/* Khu vực chứa các Biểu đồ */}
       <Box
         sx={{
           display: "grid",
@@ -258,76 +269,46 @@ export function DashboardPage() {
           mb: 2.5,
         }}
       >
+        {/* Sửa lại BarChart để đảm bảo an toàn thuộc tính dữ liệu */}
         <ChartCard
           title="Hoạt động khảo sát"
-          description="Số lượng khảo sát hoàn thành theo tháng"
+          description="Số lượng khảo sát hoàn thành theo ngày"
         >
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={surveyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill={orange} radius={[8, 8, 0, 0]} />
+            <BarChart data={surveyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} style={{ fontSize: 12 }} />
+              <YAxis tickLine={false} axisLine={false} style={{ fontSize: 12 }} />
+              <Tooltip cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }} />
+              <Bar dataKey="count" fill={orange} radius={[6, 6, 0, 0]} maxBarSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
         <ChartCard
-          title="Xu hướng ngành nghề"
-          description="Số người dùng quan tâm theo tháng"
+          title="Số lượng người dùng quan tâm"
+          description="Số người dùng quan tâm theo ngày"
         >
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={careerTrendData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
+            <LineChart data={careerTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} style={{ fontSize: 12 }} />
+              <YAxis tickLine={false} axisLine={false} style={{ fontSize: 12 }} />
               <Tooltip />
               <Line
                 type="monotone"
                 dataKey="users"
                 stroke={orange}
-                strokeWidth={2}
-                dot={{ r: 4 }}
+                strokeWidth={2.5}
+                dot={{ r: 4, strokeWidth: 2, fill: "#fff" }}
                 activeDot={{ r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
+      </Box>
 
-        <ChartCard
-          title="Phân tích nhóm tính cách"
-          description="Phân bố tính cách phổ biến (%)"
-        >
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={personalityData}
-                cx="50%"
-                cy="42%"
-                label={false}
-                outerRadius={78}
-                dataKey="value"
-              >
-                {personalityData.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
-                ))}
-              </Pie>
-
-              <Tooltip />
-
-              <Legend
-                verticalAlign="bottom"
-                iconType="circle"
-                wrapperStyle={{
-                  fontSize: 13,
-                  paddingTop: 8,
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
+      <Box width={"100%"} height={280}>
         <ChartCard
           title="Hiệu suất AI"
           description="Các chỉ số hiệu suất hệ thống AI"
@@ -389,6 +370,7 @@ export function DashboardPage() {
         </ChartCard>
       </Box>
 
+      {/* Hoạt động gần đây */}
       <Card
         elevation={0}
         sx={{

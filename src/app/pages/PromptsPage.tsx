@@ -16,8 +16,8 @@ import {
   MenuItem,
   Paper,
   Select,
-  Snackbar,
   Stack,
+  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -65,7 +65,13 @@ export function PromptsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [formData, setFormData] = useState(initialFormState);
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' | 'warning' });
+
+  // State for validation errors
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [versionError, setVersionError] = useState<string | null>(null);
+  const [contentError, setContentError] = useState<string | null>(null);
 
   const refreshPrompts = async () => {
     try {
@@ -89,23 +95,99 @@ export function PromptsPage() {
       (prompt.description || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Validation function
+  const validateForm = () => {
+    let isValid = true;
+
+    // Code validation
+    if (!formData.code.trim()) {
+      setCodeError("Mã Prompt không được để trống.");
+      isValid = false;
+    } else if (formData.code.trim().length > 50) {
+      setCodeError("Mã Prompt không được vượt quá 50 ký tự.");
+      isValid = false;
+    } else if (
+      prompts.some(
+        (p) =>
+          p.code.toLowerCase() === formData.code.trim().toLowerCase() &&
+          p.id !== editingPrompt?.id
+      )
+    ) {
+      setCodeError("Mã Prompt đã tồn tại.");
+      isValid = false;
+    } else if (formData.code.trim().includes(" ")) {
+      setCodeError("Mã Prompt không được chứa khoảng trắng.");
+      isValid = false;
+    } else {
+      setCodeError(null);
+    }
+
+    // Title validation
+    if (!formData.title.trim()) {
+      setTitleError("Tiêu đề không được để trống.");
+      isValid = false;
+    } else if (formData.title.trim().length > 255) {
+      setTitleError("Tiêu đề không được vượt quá 255 ký tự.");
+      isValid = false;
+    } else if (
+      prompts.some(
+        (p) =>
+          p.title.toLowerCase() === formData.title.trim().toLowerCase() &&
+          p.id !== editingPrompt?.id
+      )
+    ) {
+      setTitleError("Tiêu đề Prompt đã tồn tại.");
+      isValid = false;
+    } else {
+      setTitleError(null);
+    }
+
+    // Version validation
+    if (!formData.version.trim()) {
+      setVersionError("Phiên bản không được để trống.");
+      isValid = false;
+    } else if (formData.version.trim().length > 20) {
+      setVersionError("Phiên bản không được vượt quá 20 ký tự.");
+      isValid = false;
+    } else {
+      setVersionError(null);
+    }
+
+    // Content validation
+    if (!formData.content.trim()) {
+      setContentError("Nội dung không được để trống.");
+      isValid = false;
+    } else if (formData.content.trim().length > 5000) {
+      setContentError("Nội dung không được vượt quá 5000 ký tự.");
+      isValid = false;
+    } else {
+      setContentError(null);
+    }
+
+    return isValid;
+  };
+
   const handleAdd = async () => {
+    if (!validateForm()) {
+      return;
+    }
     try {
       const res = await apiRequest("/admin/prompts", {
         method: "POST",
         body: JSON.stringify(formData)
       });
-      if (res.success) {
-        await refreshPrompts();
-        setIsAddDialogOpen(false);
-        setFormData(initialFormState);
-        setSnackbar({ open: true, message: "Thêm Prompt thành công!", severity: "success" });
-      } else {
-        setSnackbar({ open: true, message: res.message || "Thêm Prompt thất bại", severity: "error" });
-      }
+      await refreshPrompts();
+      setIsAddDialogOpen(false);
+      setFormData(initialFormState);
+      // Clear all errors on successful add
+      setCodeError(null);
+      setTitleError(null);
+      setVersionError(null);
+      setContentError(null);
+      setNotification({ open: true, message: 'Thêm prompt thành công!', severity: 'success' });
     } catch (err) {
       console.error(err);
-      setSnackbar({ open: true, message: "Đã xảy ra lỗi khi thêm Prompt", severity: "error" });
+      setNotification({ open: true, message: 'Thêm prompt thất bại!', severity: 'error' });
     }
   };
 
@@ -120,26 +202,36 @@ export function PromptsPage() {
       description: prompt.description,
       content: prompt.content,
     });
+    // Clear all errors when opening edit dialog
+    setCodeError(null);
+    setTitleError(null);
+    setVersionError(null);
+    setContentError(null);
   };
 
   const handleUpdate = async () => {
+    if (!validateForm()) {
+      setNotification({ open: true, message: 'Vui lòng kiểm tra lại các trường thông tin.', severity: 'error' });
+      return;
+    }
     if (!editingPrompt) return;
     try {
       const res = await apiRequest(`/admin/prompts/${editingPrompt.id}`, {
         method: "PUT",
         body: JSON.stringify(formData)
       });
-      if (res.success) {
-        await refreshPrompts();
-        setEditingPrompt(null);
-        setFormData(initialFormState);
-        setSnackbar({ open: true, message: "Cập nhật Prompt thành công!", severity: "success" });
-      } else {
-        setSnackbar({ open: true, message: res.message || "Cập nhật Prompt thất bại", severity: "error" });
-      }
+      await refreshPrompts();
+      setEditingPrompt(null);
+      setFormData(initialFormState);
+      // Clear all errors on successful update
+      setCodeError(null);
+      setTitleError(null);
+      setVersionError(null);
+      setFormData(initialFormState);
+      setNotification({ open: true, message: 'Cập nhật prompt thành công!', severity: 'success' });
     } catch (err) {
       console.error(err);
-      setSnackbar({ open: true, message: "Đã xảy ra lỗi khi cập nhật Prompt", severity: "error" });
+      setNotification({ open: true, message: 'Cập nhật prompt thất bại!', severity: 'error' });
     }
   };
 
@@ -149,41 +241,33 @@ export function PromptsPage() {
         const res = await apiRequest(`/admin/prompts/${id}`, {
           method: "DELETE"
         });
-        if (res.success) {
-          await refreshPrompts();
-          setSnackbar({ open: true, message: "Xóa Prompt thành công!", severity: "success" });
-        } else {
-          setSnackbar({ open: true, message: res.message || "Xóa Prompt thất bại", severity: "error" });
-        }
+        await refreshPrompts();
+        setNotification({ open: true, message: 'Xóa prompt thành công!', severity: 'success' });
       } catch (err) {
         console.error(err);
-        setSnackbar({ open: true, message: "Đã xảy ra lỗi khi xóa Prompt", severity: "error" });
+        setNotification({ open: true, message: 'Xóa prompt thất bại!', severity: 'error' });
       }
     }
   };
 
-  const isFormValid =
-    formData.code.trim() &&
-    formData.title.trim() &&
-    formData.version.trim() &&
-    formData.content.trim();
+  const isFormValid = !codeError && !titleError && !versionError && !contentError && formData.code.trim() && formData.title.trim() && formData.version.trim() && formData.content.trim();
 
   const getStatusLabel = (status: string) => {
-    if (status === "active") return "Hoạt động";
-    if (status === "draft") return "Nháp";
-    return "Bảo trì";
+  return status === "active"
+    ? "Hoạt động"
+    : "Bảo trì";
   };
 
   const getStatusStyle = (status: string) => {
-    if (status === "active") {
-      return { bgcolor: "#dcfce7", color: "#15803d" };
-    }
-
-    if (status === "draft") {
-      return { bgcolor: orangeLight, color: "#92400e" };
-    }
-
-    return { bgcolor: "#fee2e2", color: "#b91c1c" };
+  return status === "active"
+    ? {
+        bgcolor: "#dcfce7",
+        color: "#15803d",
+      }
+    : {
+        bgcolor: "#fee2e2",
+        color: "#b91c1c",
+      };
   };
 
   const renderFormFields = () => (
@@ -192,9 +276,27 @@ export function PromptsPage() {
         fullWidth
         size="small"
         label="Mã Prompt"
-        placeholder="Ví dụ: PMT_CAREER_01"
+        placeholder="Ví dụ: 101"
         value={formData.code}
-        onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+        onChange={(e) => {
+          setFormData({ ...formData, code: e.target.value });
+          const value = e.target.value.trim();
+          if (!value) {
+            setCodeError("Mã Prompt không được để trống.");
+          } else if (value.length > 50) {
+            setCodeError("Mã Prompt không được vượt quá 50 ký tự.");
+          } else if (value.includes(" ")) {
+            setCodeError("Mã Prompt không được chứa khoảng trắng.");
+          } else if (prompts.some(p => p.code.toLowerCase() === value.toLowerCase() && p.id !== editingPrompt?.id)) {
+            // Check for uniqueness only if it's not the current editing prompt
+            setCodeError("Mã Prompt đã tồn tại.");
+          }
+          else {
+            setCodeError(null);
+          }
+        }}
+        error={!!codeError}
+        helperText={codeError}
         sx={inputSx}
       />
 
@@ -203,8 +305,22 @@ export function PromptsPage() {
         size="small"
         label="Tiêu đề"
         placeholder="Nhập tiêu đề prompt"
-        value={formData.title}
-        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+        value={formData.title} // Ensure this is formData.title
+        onChange={(e) => {
+          setFormData({ ...formData, title: e.target.value });
+          const value = e.target.value.trim();
+          if (!value) {
+            setTitleError("Tiêu đề không được để trống.");
+          } else if (value.length > 255) {
+            setTitleError("Tiêu đề không được vượt quá 255 ký tự.");
+          } else if (prompts.some(p => p.title.toLowerCase() === value.toLowerCase() && p.id !== editingPrompt?.id)) {
+            setTitleError("Tiêu đề Prompt đã tồn tại.");
+          } else {
+            setTitleError(null);
+          }
+        }}
+        error={!!titleError}
+        helperText={titleError}
         sx={inputSx}
       />
 
@@ -219,11 +335,21 @@ export function PromptsPage() {
           fullWidth
           size="small"
           label="Phiên bản"
-          placeholder="Ví dụ: 1.0.0"
+          placeholder="Ví dụ: 1"
           value={formData.version}
-          onChange={(e) =>
-            setFormData({ ...formData, version: e.target.value })
-          }
+          onChange={(e) => {
+            setFormData({ ...formData, version: e.target.value });
+            const value = e.target.value.trim();
+            if (!value) {
+              setVersionError("Phiên bản không được để trống.");
+            } else if (value.length > 20) {
+              setVersionError("Phiên bản không được vượt quá 20 ký tự.");
+            } else {
+              setVersionError(null);
+            }
+          }}
+          error={!!versionError}
+          helperText={versionError}
           sx={inputSx}
         />
 
@@ -237,23 +363,10 @@ export function PromptsPage() {
             }
           >
             <MenuItem value="active">Hoạt động</MenuItem>
-            <MenuItem value="inactive">Bảo trì / Khóa</MenuItem>
-            <MenuItem value="draft">Nháp</MenuItem>
+            <MenuItem value="inactive">Bảo trì </MenuItem>
           </Select>
         </FormControl>
       </Box>
-
-      <TextField
-        fullWidth
-        size="small"
-        label="Biến đầu vào"
-        placeholder="Ví dụ: {skills}, {interests}"
-        value={formData.inputVariables}
-        onChange={(e) =>
-          setFormData({ ...formData, inputVariables: e.target.value })
-        }
-        sx={inputSx}
-      />
 
       <TextField
         fullWidth
@@ -263,9 +376,16 @@ export function PromptsPage() {
         label="Mô tả"
         placeholder="Nhập mô tả ngắn gọn"
         value={formData.description}
-        onChange={(e) =>
-          setFormData({ ...formData, description: e.target.value })
-        }
+        onChange={(e) => { // No specific validation for description length, but keeping the structure
+          setFormData({ ...formData, description: e.target.value }); 
+          const value = e.target.value.trim();
+          if (value.length > 1000) { // Example max length
+            // You might want to add a state for description error if needed
+            // setDescriptionError("Mô tả không được vượt quá 1000 ký tự."); // No error state for description
+          } else {
+            // setDescriptionError(null);
+          }
+        }}
         sx={inputSx}
       />
 
@@ -277,363 +397,380 @@ export function PromptsPage() {
         label="Nội dung"
         placeholder="Nhập nội dung cấu hình prompt cho AI..."
         value={formData.content}
-        onChange={(e) =>
-          setFormData({ ...formData, content: e.target.value })
-        }
+        onChange={(e) => {
+          setFormData({ ...formData, content: e.target.value });
+          if (!e.target.value.trim()) {
+            setContentError("Nội dung không được để trống.");
+          } else if (e.target.value.trim().length > 5000) {
+            setContentError("Nội dung không được vượt quá 5000 ký tự.");
+          } else {
+            setContentError(null);
+          }
+        }}
+        error={!!contentError}
+        helperText={contentError}
         sx={inputSx}
       />
     </Box>
   );
 
   return (
-    <Box>
-      <Box
-        sx={{
-          mb: 2.5,
-          display: "flex",
-          alignItems: { xs: "flex-start", md: "center" },
-          justifyContent: "space-between",
-          gap: 2,
-          flexDirection: { xs: "column", md: "row" },
-        }}
+  <Box>
+    {/* 1. Thông báo Toast (Snackbar) */}
+    <Snackbar 
+      open={notification.open} 
+      autoHideDuration={4000} 
+      onClose={() => setNotification({ ...notification, open: false })}
+      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+    >
+      <Alert 
+        onClose={() => setNotification({ ...notification, open: false })} 
+        severity={notification.severity} 
+        sx={{ width: '100%', borderRadius: "10px", fontWeight: 600 }}
       >
-        <Box>
-          <Typography
-            sx={{
-              fontSize: 30,
-              fontWeight: 700,
-              color: textMain,
-              letterSpacing: "-0.03em",
-            }}
-          >
-            Quản lý Prompt
-          </Typography>
+        {notification.message}
+      </Alert>
+    </Snackbar>
 
-          <Typography sx={{ color: textMuted, mt: 0.5, fontSize: 15 }}>
-            Quản lý các kịch bản và prompt cho AI
-          </Typography>
-        </Box>
-
-        <Button
-          size="small"
-          variant="contained"
-          startIcon={<Add sx={{ fontSize: 18 }} />}
-          onClick={() => setIsAddDialogOpen(true)}
-          sx={addButtonSx}
+    {/* 2. Header: Tiêu đề & Nút Thêm */}
+    <Box
+      sx={{
+        mb: 2.5,
+        display: "flex",
+        alignItems: { xs: "flex-start", md: "center" },
+        justifyContent: "space-between",
+        gap: 2,
+        flexDirection: { xs: "column", md: "row" },
+      }}
+    >
+      <Box>
+        <Typography
+          sx={{
+            fontSize: 30,
+            fontWeight: 700,
+            color: textMain,
+            letterSpacing: "-0.03em",
+          }}
         >
-          Thêm Prompt
-        </Button>
+          Quản lý Prompt
+        </Typography>
+
+        <Typography sx={{ color: textMuted, mt: 0.5, fontSize: 15 }}>
+          Quản lý các kịch bản và prompt cho AI
+        </Typography>
       </Box>
 
-      <Dialog
-        open={isAddDialogOpen}
-        onClose={() => {
-          setIsAddDialogOpen(false);
-          setFormData(initialFormState);
-        }}
-        fullWidth
-        maxWidth="md"
+      <Button
+        size="small"
+        variant="contained"
+        startIcon={<Add sx={{ fontSize: 18 }} />}
+        onClick={() => setIsAddDialogOpen(true)}
+        sx={addButtonSx}
       >
-        <DialogTitle sx={{ fontWeight: 700, color: textMain }}>
-          Thêm Prompt mới
-          <Typography sx={{ color: textMuted, fontSize: 14, mt: 0.5 }}>
-            Nhập thông tin prompt để thêm vào hệ thống
-          </Typography>
-        </DialogTitle>
+        Thêm Prompt
+      </Button>
+    </Box>
 
-        <DialogContent>{renderFormFields()}</DialogContent>
+    {/* 3. Dialog Thêm mới */}
+    <Dialog
+      open={isAddDialogOpen}
+      onClose={() => {
+        setIsAddDialogOpen(false);
+        setFormData(initialFormState);
+      }}
+      fullWidth
+      maxWidth="md"
+    >
+      <DialogTitle sx={{ fontWeight: 700, color: textMain }}>
+        Thêm Prompt mới
+        <Typography sx={{ color: textMuted, fontSize: 14, mt: 0.5 }}>
+          Nhập thông tin prompt để thêm vào hệ thống
+        </Typography>
+      </DialogTitle>
 
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setIsAddDialogOpen(false);
-              setFormData(initialFormState);
-            }}
-            sx={cancelButtonSx}
-          >
-            Hủy
-          </Button>
+      <DialogContent>{renderFormFields()}</DialogContent>
 
-          <Button
-            variant="contained"
-            onClick={handleAdd}
-            disabled={!isFormValid}
-            sx={primaryButtonSx}
-          >
-            Thêm
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button
+          variant="outlined"
+          onClick={() => {
+            setIsAddDialogOpen(false);
+            setFormData(initialFormState);
+          }}
+          sx={cancelButtonSx}
+        >
+          Hủy
+        </Button>
 
-      <Dialog
-        open={!!editingPrompt}
-        onClose={() => {
-          setEditingPrompt(null);
-          setFormData(initialFormState);
-        }}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle sx={{ fontWeight: 700, color: textMain }}>
-          Cập nhật Prompt
-          <Typography sx={{ color: textMuted, fontSize: 14, mt: 0.5 }}>
-            Chỉnh sửa thông tin prompt
-          </Typography>
-        </DialogTitle>
+        <Button
+          variant="contained"
+          onClick={handleAdd}
+          disabled={!isFormValid}
+          sx={primaryButtonSx}
+        >
+          Thêm
+        </Button>
+      </DialogActions>
+    </Dialog>
 
-        <DialogContent>{renderFormFields()}</DialogContent>
+    {/* 4. Dialog Cập nhật */}
+    <Dialog
+      open={!!editingPrompt}
+      onClose={() => {
+        setEditingPrompt(null);
+        setFormData(initialFormState);
+      }}
+      fullWidth
+      maxWidth="md"
+    >
+      <DialogTitle sx={{ fontWeight: 700, color: textMain }}>
+        Cập nhật Prompt
+        <Typography sx={{ color: textMuted, fontSize: 14, mt: 0.5 }}>
+          Chỉnh sửa thông tin prompt
+        </Typography>
+      </DialogTitle>
 
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setEditingPrompt(null);
-              setFormData(initialFormState);
-            }}
-            sx={cancelButtonSx}
-          >
-            Hủy
-          </Button>
+      <DialogContent>{renderFormFields()}</DialogContent>
 
-          <Button
-            variant="contained"
-            onClick={handleUpdate}
-            disabled={!isFormValid}
-            sx={primaryButtonSx}
-          >
-            Cập nhật
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button
+          variant="outlined"
+          onClick={() => {
+            setEditingPrompt(null);
+            setFormData(initialFormState);
+          }}
+          sx={cancelButtonSx}
+        >
+          Hủy
+        </Button>
 
-      <Card elevation={0} sx={cardSx}>
-        <CardContent sx={{ p: 2.5 }}>
-          <Typography sx={{ fontSize: 18, fontWeight: 700, color: textMain }}>
-            Tra cứu Prompt
-          </Typography>
+        <Button
+          variant="contained"
+          onClick={handleUpdate}
+          disabled={!isFormValid}
+          sx={primaryButtonSx}
+        >
+          Cập nhật
+        </Button>
+      </DialogActions>
+    </Dialog>
 
-          <Typography sx={{ fontSize: 14, color: textMuted, mt: 0.5, mb: 2 }}>
-            Tìm kiếm prompt theo mã, tiêu đề hoặc mô tả
-          </Typography>
+    {/* 5. Khung Tìm kiếm */}
+    <Card elevation={0} sx={cardSx}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Typography sx={{ fontSize: 18, fontWeight: 700, color: textMain }}>
+          Tra cứu Prompt
+        </Typography>
 
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Tìm kiếm..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search sx={{ color: "#9ca3af" }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={inputSx}
-          />
-        </CardContent>
-      </Card>
+        <Typography sx={{ fontSize: 14, color: textMuted, mt: 0.5, mb: 2 }}>
+          Tìm kiếm prompt theo mã, tiêu đề hoặc mô tả
+        </Typography>
 
-      <Card elevation={0} sx={{ ...cardSx, mb: 0 }}>
-        <CardContent sx={{ p: 2.5 }}>
-          <Typography
-            sx={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: textMain,
-              mb: 2,
-            }}
-          >
-            Danh sách Prompt ({filteredPrompts.length})
-          </Typography>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Tìm kiếm..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: "#9ca3af" }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={inputSx}
+        />
+      </CardContent>
+    </Card>
 
-          <TableContainer
-            component={Paper}
-            elevation={0}
-            sx={{
-              border: `1px solid ${borderColor}`,
-              borderRadius: "14px",
-              overflow: "hidden",
-            }}
-          >
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: "#f9fafb" }}>
-                  {[
-                    "Mã Prompt",
-                    "Tiêu đề",
-                    "Phiên bản",
-                    "Trạng thái",
-                    "Ngày tạo",
-                    "Thao tác",
-                  ].map((head) => (
-                    <TableCell
-                      key={head}
-                      align={head === "Thao tác" ? "right" : "left"}
+    {/* 6. Bảng danh sách Prompt */}
+    <Card elevation={0} sx={{ ...cardSx, mb: 0 }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Typography
+          sx={{
+            fontSize: 18,
+            fontWeight: 700,
+            color: textMain,
+            mb: 2,
+          }}
+        >
+          Danh sách Prompt ({filteredPrompts.length})
+        </Typography>
+
+        <TableContainer
+          component={Paper}
+          elevation={0}
+          sx={{
+            border: `1px solid ${borderColor}`,
+            borderRadius: "14px",
+            overflow: "hidden",
+          }}
+        >
+          <Table>
+            <TableHead>
+              <TableRow sx={{ bgcolor: "#f9fafb" }}>
+                {[
+                  "Mã Prompt",
+                  "Tiêu đề",
+                  "Phiên bản",
+                  "Trạng thái",
+                  "Ngày tạo",
+                  "Thao tác",
+                ].map((head) => (
+                  <TableCell
+                    key={head}
+                    align={head === "Thao tác" ? "right" : "left"}
+                    sx={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#4b5563",
+                      borderBottom: `1px solid ${borderColor}`,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {head}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {filteredPrompts.map((prompt) => (
+                <TableRow
+                  key={prompt.id}
+                  hover
+                  sx={{
+                    "& td": {
+                      borderBottom: `1px solid ${borderColor}`,
+                    },
+                    "&:last-child td": {
+                      borderBottom: 0,
+                    },
+                  }}
+                >
+                  <TableCell>
+                    <Typography
                       sx={{
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: 700,
-                        color: "#4b5563",
-                        borderBottom: `1px solid ${borderColor}`,
+                        color: textMain,
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {head}
-                    </TableCell>
-                  ))}
+                      {prompt.code}
+                    </Typography>
+                  </TableCell>
+
+                  <TableCell>
+                    <Typography
+                      sx={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: textMain,
+                      }}
+                    >
+                      {prompt.title}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        color: textMuted,
+                        maxWidth: 320,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {prompt.description}
+                    </Typography>
+                  </TableCell>
+
+                  <TableCell>
+                    <Chip
+                      label={prompt.version}
+                      size="small"
+                      sx={{
+                        bgcolor: "#f3f4f6",
+                        color: textMain,
+                        fontWeight: 700,
+                      }}
+                    />
+                  </TableCell>
+
+                  <TableCell>
+                    <Chip
+                      label={getStatusLabel(prompt.status)}
+                      size="small"
+                      sx={{
+                        ...getStatusStyle(prompt.status),
+                        fontWeight: 700,
+                      }}
+                    />
+                  </TableCell>
+
+                  <TableCell>
+                    <Typography sx={{ fontSize: 13, color: textMuted, whiteSpace: "nowrap" }}>
+                      {prompt.createdAt ? new Date(prompt.createdAt).toLocaleDateString("vi-VN") : "—"}
+                    </Typography>
+                  </TableCell>
+                  
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={() => handleEdit(prompt)}
+                        sx={{
+                          minWidth: 36,
+                          color: orange,
+                          "&:hover": {
+                            bgcolor: orangeLight,
+                          },
+                        }}
+                      >
+                        <Edit sx={{ fontSize: 18 }} />
+                      </Button>
+
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={() => handleDelete(prompt.id)}
+                        sx={{
+                          minWidth: 36,
+                          color: "#dc2626",
+                          "&:hover": {
+                            bgcolor: "#fee2e2",
+                          },
+                        }}
+                      >
+                        <Delete sx={{ fontSize: 18 }} />
+                      </Button>
+                    </Stack>
+                  </TableCell>
                 </TableRow>
-              </TableHead>
+              ))}
 
-              <TableBody>
-                {filteredPrompts.map((prompt) => (
-                  <TableRow
-                    key={prompt.id}
-                    hover
-                    sx={{
-                      "& td": {
-                        borderBottom: `1px solid ${borderColor}`,
-                      },
-                      "&:last-child td": {
-                        borderBottom: 0,
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Typography
-                        sx={{
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: textMain,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {prompt.code}
+              {filteredPrompts.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    <Box sx={{ py: 5, textAlign: "center" }}>
+                      <Typography sx={{ color: textMuted }}>
+                        Không tìm thấy Prompt nào.
                       </Typography>
-                    </TableCell>
-
-                    <TableCell>
-                      <Typography
-                        sx={{
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: textMain,
-                        }}
-                      >
-                        {prompt.title}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: 12,
-                          color: textMuted,
-                          maxWidth: 320,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {prompt.description}
-                      </Typography>
-                    </TableCell>
-
-                    <TableCell>
-                      <Chip
-                        label={prompt.version}
-                        size="small"
-                        sx={{
-                          bgcolor: "#f3f4f6",
-                          color: textMain,
-                          fontWeight: 700,
-                        }}
-                      />
-                    </TableCell>
-
-                    <TableCell>
-                      <Chip
-                        label={getStatusLabel(prompt.status)}
-                        size="small"
-                        sx={{
-                          ...getStatusStyle(prompt.status),
-                          fontWeight: 700,
-                        }}
-                      />
-                    </TableCell>
-
-                    <TableCell>
-                      <Typography sx={{ fontSize: 13, color: textMuted }}>
-                        {prompt.createdAt}
-                      </Typography>
-                    </TableCell>
-
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <Button
-                          variant="text"
-                          size="small"
-                          onClick={() => handleEdit(prompt)}
-                          sx={{
-                            minWidth: 36,
-                            color: orange,
-                            "&:hover": {
-                              bgcolor: orangeLight,
-                            },
-                          }}
-                        >
-                          <Edit sx={{ fontSize: 18 }} />
-                        </Button>
-
-                        <Button
-                          variant="text"
-                          size="small"
-                          onClick={() => handleDelete(prompt.id)}
-                          sx={{
-                            minWidth: 36,
-                            color: "#dc2626",
-                            "&:hover": {
-                              bgcolor: "#fee2e2",
-                            },
-                          }}
-                        >
-                          <Delete sx={{ fontSize: 18 }} />
-                        </Button>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-                {filteredPrompts.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <Box sx={{ py: 5, textAlign: "center" }}>
-                        <Typography sx={{ color: textMuted }}>
-                          Không tìm thấy Prompt nào.
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-    </Box>,
-    snackbar: Snackbar(
-      open: snackbar.open,
-      autoHideDuration: 4000,
-      onClose: () => setSnackbar({ ...snackbar, open: false }),
-      anchorOrigin: { vertical: "bottom", horizontal: "center" } as const,
-      child: Alert(
-        onClose: () => setSnackbar({ ...snackbar, open: false }),
-        severity={snackbar.severity},
-        sx: { width: "100%", borderRadius: "10px", fontWeight: 600 },
-      >
-        {snackbar.message}
-      </Alert>
-    ),
-  );
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </CardContent>
+    </Card>
+  </Box>
+);
 }
 
 const inputSx = {

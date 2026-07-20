@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useCategories } from "../contexts/CategoriesContext";
 import {
   Add,
   Delete,
@@ -7,6 +6,7 @@ import {
   Search,
 } from "@mui/icons-material";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -23,6 +23,7 @@ import {
   Paper,
   Select,
   Stack,
+  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -37,7 +38,6 @@ import { apiRequest } from "../services/api";
 interface Career {
   id: string;
   tenNghe: string;
-  categoryId: string;
   moTa: string;
   kyNangCanThiet: string;
   trangThai: number;
@@ -52,18 +52,15 @@ const textMain = "#111827";
 const textMuted = "#6b7280";
 
 export function CareersPage() {
-  const { categories } = useCategories();
-
   const [careers, setCareers] = useState<Career[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterTrangThai, setFilterTrangThai] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingCareer, setEditingCareer] = useState<Career | null>(null);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' | 'warning' });
 
   const [formData, setFormData] = useState({
     tenNghe: "",
-    categoryId: categories[0]?.id ?? "",
     moTa: "",
     kyNangCanThiet: "",
     trangThai: 1,
@@ -84,35 +81,24 @@ export function CareersPage() {
     refreshCareers();
   }, []);
 
-  const getCategoryName = (id: string) =>
-    categories.find((c) => c.id === id)?.tenNganh ?? "—";
-
   const filtered = careers.filter((career) => {
-    const catName = getCategoryName(career.categoryId).toLowerCase();
-
     const matchSearch =
-      (career.tenNghe || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      catName.includes(searchTerm.toLowerCase());
-
-    const matchCategory = filterCategoryId
-      ? career.categoryId === filterCategoryId
-      : true;
+      (career.tenNghe || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchStatus =
       filterTrangThai !== ""
         ? career.trangThai === Number(filterTrangThai)
         : true;
 
-    return matchSearch && matchCategory && matchStatus;
+    return matchSearch && matchStatus;
   });
 
   const resetForm = () => {
     setFormData({
       tenNghe: "",
-      categoryId: categories[0]?.id ?? "",
       moTa: "",
       kyNangCanThiet: "",
-      trangThai: 1,
+      trangThai: 1
     });
   };
 
@@ -125,8 +111,10 @@ export function CareersPage() {
       await refreshCareers();
       setIsAddOpen(false);
       resetForm();
+      setNotification({ open: true, message: 'Thêm nghề nghiệp thành công!', severity: 'success' });
     } catch (err) {
       console.error(err);
+      setNotification({ open: true, message: 'Thêm nghề nghiệp thất bại!', severity: 'error' });
     }
   };
 
@@ -134,7 +122,6 @@ export function CareersPage() {
     setEditingCareer(career);
     setFormData({
       tenNghe: career.tenNghe,
-      categoryId: career.categoryId,
       moTa: career.moTa,
       kyNangCanThiet: career.kyNangCanThiet,
       trangThai: career.trangThai,
@@ -151,8 +138,10 @@ export function CareersPage() {
       await refreshCareers();
       setEditingCareer(null);
       resetForm();
+      setNotification({ open: true, message: 'Cập nhật nghề nghiệp thành công!', severity: 'success' });
     } catch (err) {
       console.error(err);
+      setNotification({ open: true, message: 'Cập nhật nghề nghiệp thất bại!', severity: 'error' });
     }
   };
 
@@ -163,8 +152,10 @@ export function CareersPage() {
           method: "DELETE"
         });
         await refreshCareers();
+        setNotification({ open: true, message: 'Xóa nghề nghiệp thành công!', severity: 'success' });
       } catch (err) {
         console.error(err);
+        setNotification({ open: true, message: 'Xóa nghề nghiệp thất bại!', severity: 'error' });
       }
     }
   };
@@ -175,43 +166,19 @@ export function CareersPage() {
     formData.kyNangCanThiet.trim();
 
   const renderForm = () => (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.2, mt: 1 }}>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gap: 2,
-        }}
-      >
-        <TextField
-          label="Tên nghề"
-          required
-          fullWidth
-          value={formData.tenNghe}
-          onChange={(e) =>
-            setFormData({ ...formData, tenNghe: e.target.value })
-          }
-          placeholder="VD: Lập trình viên Front-end"
-          sx={inputSx}
-        />
-
-        <FormControl fullWidth sx={inputSx}>
-          <InputLabel>Danh mục ngành</InputLabel>
-          <Select
-            label="Danh mục ngành"
-            value={formData.categoryId}
-            onChange={(e) =>
-              setFormData({ ...formData, categoryId: e.target.value })
-            }
-          >
-            {categories.map((cat) => (
-              <MenuItem key={cat.id} value={cat.id}>
-                {cat.tenNganh} ({cat.truong})
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.2, mt: 1.5 }}>
+      {/* Để Tên nghề full-width sau khi xóa ô Danh mục bên cạnh */}
+      <TextField
+        label="Tên nghề"
+        required
+        fullWidth
+        value={formData.tenNghe}
+        onChange={(e) =>
+          setFormData({ ...formData, tenNghe: e.target.value })
+        }
+        placeholder="VD: Lập trình viên Front-end"
+        sx={inputSx}
+      />
 
       <TextField
         label="Mô tả"
@@ -222,7 +189,7 @@ export function CareersPage() {
         value={formData.moTa}
         onChange={(e) => setFormData({ ...formData, moTa: e.target.value })}
         placeholder="Mô tả công việc và trách nhiệm chính..."
-        sx={inputSx}
+        sx={multilineInputSx}
       />
 
       <TextField
@@ -236,40 +203,53 @@ export function CareersPage() {
           setFormData({ ...formData, kyNangCanThiet: e.target.value })
         }
         placeholder="VD: Python, Machine Learning, TensorFlow"
-        sx={inputSx}
+        sx={multilineInputSx}
       />
 
-      <TextField
-        label="URL Hình ảnh"
-        fullWidth
-        onChange={(e) => setFormData({ ...formData })}
-        placeholder="https://example.com/image.jpg"
-        sx={inputSx}
-      />
-      <FormControl fullWidth sx={inputSx}>
-        <InputLabel>Trạng thái</InputLabel>
-        <Select
-          label="Trạng thái"
-          value={formData.trangThai}
-          onChange={(e) =>
-            setFormData({ ...formData, trangThai: Number(e.target.value) })
-          }
-        >
-          <MenuItem value={1}>Hoạt động</MenuItem>
-          <MenuItem value={0}>Khóa</MenuItem>
-        </Select>
-      </FormControl>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+          gap: 2,
+        }}
+      >
+        <FormControl fullWidth sx={inputSx}>
+          <InputLabel>Trạng thái</InputLabel>
+          <Select
+            label="Trạng thái"
+            value={formData.trangThai}
+            onChange={(e) =>
+              setFormData({ ...formData, trangThai: Number(e.target.value) })
+            }
+          >
+            <MenuItem value={1}>Hoạt động</MenuItem>
+            <MenuItem value={0}>Khóa</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
     </Box>
   );
 
   return (
-    <Box>
+    <Box sx={{ width: "100%", maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+      <Snackbar 
+        open={notification.open} 
+        autoHideDuration={4000} 
+        onClose={() => setNotification({ ...notification, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setNotification({ ...notification, open: false })} 
+          severity={notification.severity} sx={{ width: '100%' }}>
+          {notification.message}
+        </Alert>
+      </Snackbar>
       <Box
         sx={{
           mb: 3,
           display: "flex",
-          alignItems: { xs: "flex-start", md: "center" },
-          justifyContent: "space-between", pr: 2,
+          alignItems: { xs: "stretch", md: "center" },
+          justifyContent: "space-between",
           gap: 2,
           flexDirection: { xs: "column", md: "row" },
         }}
@@ -277,7 +257,7 @@ export function CareersPage() {
         <Box>
           <Typography
             sx={{
-              fontSize: 32,
+              fontSize: { xs: 26, md: 32 },
               fontWeight: 700,
               color: textMain,
               letterSpacing: "-0.03em",
@@ -286,7 +266,7 @@ export function CareersPage() {
             Quản lý Nghề nghiệp
           </Typography>
 
-          <Typography sx={{ color: textMuted, mt: 0.5, fontSize: 15 }}>
+          <Typography sx={{ color: textMuted, mt: 0.5, fontSize: 14 }}>
             Quản lý danh sách nghề nghiệp trong hệ thống
           </Typography>
         </Box>
@@ -296,15 +276,15 @@ export function CareersPage() {
           startIcon={<Add />}
           onClick={() => setIsAddOpen(true)}
           sx={{
-            transform: "translateX(-20px)",
             bgcolor: orange,
             color: "#fff",
             borderRadius: "10px",
-            px: 1.6,
-            py: 0.7,
+            px: 2,
+            py: 1,
             textTransform: "none",
             fontWeight: 700,
             boxShadow: "none",
+            alignSelf: { xs: "flex-start", md: "auto" },
             "&:hover": {
               bgcolor: orangeDark,
               boxShadow: "none",
@@ -315,6 +295,7 @@ export function CareersPage() {
         </Button>
       </Box>
 
+      {/* Dialogs */}
       <Dialog
         open={isAddOpen}
         onClose={() => {
@@ -330,29 +311,10 @@ export function CareersPage() {
             Nhập thông tin chi tiết cho nghề nghiệp cần thêm vào hệ thống.
           </Typography>
         </DialogTitle>
-
         <DialogContent>{renderForm()}</DialogContent>
-
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setIsAddOpen(false);
-              resetForm();
-            }}
-            sx={cancelButtonSx}
-          >
-            Hủy
-          </Button>
-
-          <Button
-            variant="contained"
-            disabled={!isFormValid}
-            onClick={handleAdd}
-            sx={primaryButtonSx}
-          >
-            Thêm
-          </Button>
+          <Button variant="outlined" onClick={() => { setIsAddOpen(false); resetForm(); }} sx={cancelButtonSx}>Hủy</Button>
+          <Button variant="contained" disabled={!isFormValid} onClick={handleAdd} sx={primaryButtonSx}>Thêm</Button>
         </DialogActions>
       </Dialog>
 
@@ -371,29 +333,10 @@ export function CareersPage() {
             Chỉnh sửa thông tin chi tiết của nghề nghiệp.
           </Typography>
         </DialogTitle>
-
         <DialogContent>{renderForm()}</DialogContent>
-
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setEditingCareer(null);
-              resetForm();
-            }}
-            sx={cancelButtonSx}
-          >
-            Hủy
-          </Button>
-
-          <Button
-            variant="contained"
-            disabled={!isFormValid}
-            onClick={handleUpdate}
-            sx={primaryButtonSx}
-          >
-            Cập nhật
-          </Button>
+          <Button variant="outlined" onClick={() => { setEditingCareer(null); resetForm(); }} sx={cancelButtonSx}>Hủy</Button>
+          <Button variant="contained" disabled={!isFormValid} onClick={handleUpdate} sx={primaryButtonSx}>Cập nhật</Button>
         </DialogActions>
       </Dialog>
 
@@ -404,6 +347,7 @@ export function CareersPage() {
           borderRadius: "18px",
           bgcolor: "#fff",
           mb: 3,
+          maxWidth: "100%",
         }}
       >
         <CardContent sx={{ p: 2.5 }}>
@@ -412,7 +356,7 @@ export function CareersPage() {
           </Typography>
 
           <Typography sx={{ fontSize: 14, color: textMuted, mt: 0.5, mb: 2 }}>
-            Tìm kiếm và lọc theo danh mục, trạng thái
+            Tìm kiếm và lọc theo trạng thái
           </Typography>
 
           <Box
@@ -420,15 +364,16 @@ export function CareersPage() {
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
-                md: "1fr 220px 180px",
+                sm: "3fr 1fr", // Chia tỉ lệ tìm kiếm rộng hơn và trạng thái gọn lại
               },
               gap: 2,
+              width: "100%",
             }}
           >
             <TextField
               fullWidth
               size="small"
-              placeholder="Tìm theo tên nghề, danh mục..."
+              placeholder="Tìm kiếm..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               slotProps={{
@@ -443,23 +388,7 @@ export function CareersPage() {
               sx={inputSx}
             />
 
-            <FormControl fullWidth  size="small" sx={inputSx}>
-              <InputLabel>Danh mục</InputLabel>
-              <Select
-                label="Danh mục"
-                value={filterCategoryId}
-                onChange={(e) => setFilterCategoryId(e.target.value)}
-              >
-                <MenuItem value="">Tất cả danh mục</MenuItem>
-                {categories.map((cat) => (
-                  <MenuItem key={cat.id} value={cat.id}>
-                    {cat.tenNganh} ({cat.truong})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth  size="small" sx={inputSx}>
+            <FormControl fullWidth size="small" sx={inputSx}>
               <InputLabel>Trạng thái</InputLabel>
               <Select
                 label="Trạng thái"
@@ -475,23 +404,19 @@ export function CareersPage() {
         </CardContent>
       </Card>
 
+      {/* Bảng danh sách */}
       <Card
         elevation={0}
         sx={{
           border: `1px solid ${borderColor}`,
           borderRadius: "18px",
           bgcolor: "#fff",
+          maxWidth: "100%",
+          width: "100%",
         }}
       >
-        <CardContent sx={{ p: 3 }}>
-          <Typography
-            sx={{
-              fontSize: 20,
-              fontWeight: 700,
-              color: textMain,
-              mb: 2,
-            }}
-          >
+        <CardContent sx={{ p: { xs: 2, sm: 3 }, width: "100%", boxSizing: "border-box" }}>
+          <Typography sx={{ fontSize: 20, fontWeight: 700, color: textMain, mb: 2 }}>
             Danh sách nghề nghiệp ({filtered.length})
           </Typography>
 
@@ -501,35 +426,21 @@ export function CareersPage() {
             sx={{
               border: `1px solid ${borderColor}`,
               borderRadius: "14px",
-              overflow: "hidden",
+              overflowX: "auto",
+              width: "100%",
+              maxWidth: "100%",
             }}
           >
-            <Table>
+            <Table sx={{ minWidth: 850 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: "#f9fafb" }}>
-                  {[
-                    "Tên nghề",
-                    "Danh mục",
-                    "Mô tả",
-                    "Kỹ năng cần thiết",
-                    "Trạng thái",
-                    "Ngày tạo",
-                    "Thao tác",
-                  ].map((head) => (
-                    <TableCell
-                      key={head}
-                      align={head === "Thao tác" ? "right" : "left"}
-                      sx={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "#4b5563",
-                        borderBottom: `1px solid ${borderColor}`,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {head}
-                    </TableCell>
-                  ))}
+                  {/* Phân bổ lại tỷ lệ phần trăm các cột sau khi xóa cột Danh mục */}
+                  <TableCell sx={thSx} style={{ width: "25%" }}>Tên nghề</TableCell>
+                  <TableCell sx={thSx} style={{ width: "30%" }}>Mô tả</TableCell>
+                  <TableCell sx={thSx} style={{ width: "25%" }}>Kỹ năng cần thiết</TableCell>
+                  <TableCell sx={thSx} style={{ width: "10%", minWidth: "110px" }}>Trạng thái</TableCell>
+                  <TableCell sx={thSx} style={{ width: "10%", minWidth: "110px" }}>Ngày tạo</TableCell>
+                  <TableCell sx={thSx} style={{ width: "10%", minWidth: "100px" }} align="right">Thao tác</TableCell>
                 </TableRow>
               </TableHead>
 
@@ -539,127 +450,81 @@ export function CareersPage() {
                     key={career.id}
                     hover
                     sx={{
-                      "& td": {
-                        borderBottom: `1px solid ${borderColor}`,
-                      },
-                      "&:last-child td": {
-                        borderBottom: 0,
-                      },
+                      "& td": { borderBottom: `1px solid ${borderColor}` },
+                      "&:last-child td": { borderBottom: 0 },
                     }}
                   >
-
-                    <TableCell>
-                      <Typography
-                        sx={{
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: textMain,
-                          minWidth: 150,
-                        }}
-                      >
+                    <TableCell sx={{ verticalAlign: "top" }}>
+                      <Typography sx={{ fontSize: 14, fontWeight: 700, color: textMain, wordBreak: "break-word" }}>
                         {career.tenNghe}
                       </Typography>
                     </TableCell>
 
-                    <TableCell>
-                      <Chip
-                        label={getCategoryName(career.categoryId)}
-                        size="small"
-                        sx={{
-                          bgcolor: orangeLight,
-                          color: "#92400e",
-                          fontWeight: 700,
-                        }}
-                      />
-                    </TableCell>
-
-                    <TableCell>
+                    <TableCell sx={{ verticalAlign: "top" }}>
                       <Typography
                         title={career.moTa}
                         sx={{
-                          maxWidth: 200,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: "vertical",
                           color: textMuted,
                           fontSize: 14,
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
                         }}
                       >
                         {career.moTa}
                       </Typography>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell sx={{ verticalAlign: "top" }}>
                       <Typography
                         title={career.kyNangCanThiet}
                         sx={{
-                          maxWidth: 220,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: "vertical",
                           color: textMain,
                           fontSize: 14,
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
                         }}
                       >
                         {career.kyNangCanThiet}
                       </Typography>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell sx={{ verticalAlign: "top" }}>
                       <Chip
                         label={career.trangThai === 1 ? "Hoạt động" : "Khóa"}
                         size="small"
                         sx={{
-                          bgcolor:
-                            career.trangThai === 1 ? "#dcfce7" : "#fee2e2",
-                          color:
-                            career.trangThai === 1 ? "#15803d" : "#b91c1c",
+                          bgcolor: career.trangThai === 1 ? "#dcfce7" : "#fee2e2",
+                          color: career.trangThai === 1 ? "#15803d" : "#b91c1c",
                           fontWeight: 700,
+                          "& .MuiChip-label": {
+                            whiteSpace: "nowrap",
+                          }
                         }}
                       />
                     </TableCell>
 
-                    <TableCell>
-                      <Typography
-                        sx={{
-                          color: textMuted,
-                          fontSize: 14,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {career.ngayTao}
+                    <TableCell sx={{ verticalAlign: "top" }}>
+                      <Typography sx={{ color: textMuted, fontSize: 14, whiteSpace: "nowrap" }}>
+                        {career.ngayTao ? new Date(career.ngayTao).toLocaleDateString("vi-VN") : "—"}
                       </Typography>
                     </TableCell>
 
-                    <TableCell align="right">
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        justifyContent="flex-end"
-                      >
-                        <Button
-                          variant="text"
-                          size="small"
-                          onClick={() => handleEdit(career)}
-                          sx={{
-                            minWidth: 36,
-                            color: orange,
-                            "&:hover": { bgcolor: orangeLight },
-                          }}
-                        >
+                    <TableCell align="right" sx={{ verticalAlign: "top" }}>
+                      <Stack direction="row" spacing={0.2} justifyContent="flex-end">
+                        <Button variant="text" size="small" onClick={() => handleEdit(career)} sx={{ minWidth: 32, p: 0.5, color: orange }}>
                           <Edit sx={{ fontSize: 18 }} />
                         </Button>
-
-                        <Button
-                          variant="text"
-                          size="small"
-                          onClick={() => handleDelete(career.id)}
-                          sx={{
-                            minWidth: 36,
-                            color: "#dc2626",
-                            "&:hover": { bgcolor: "#fee2e2" },
-                          }}
-                        >
+                        <Button variant="text" size="small" onClick={() => handleDelete(career.id)} sx={{ minWidth: 32, p: 0.5, color: "#dc2626" }}>
                           <Delete sx={{ fontSize: 18 }} />
                         </Button>
                       </Stack>
@@ -669,11 +534,9 @@ export function CareersPage() {
 
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8}>
+                    <TableCell colSpan={6}>
                       <Box sx={{ py: 5, textAlign: "center" }}>
-                        <Typography sx={{ color: textMuted }}>
-                          Không tìm thấy nghề nghiệp nào.
-                        </Typography>
+                        <Typography sx={{ color: textMuted }}>Không tìm thấy nghề nghiệp nào.</Typography>
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -687,43 +550,34 @@ export function CareersPage() {
   );
 }
 
+// Styles bổ sung
+const thSx = {
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#4b5563",
+  whiteSpace: "nowrap",
+};
+
 const inputSx = {
   "& .MuiOutlinedInput-root": {
     height: 40,
     borderRadius: "10px",
     bgcolor: "#fff",
-
-    "& fieldset": {
-      borderColor,
-    },
-
-    "&:hover fieldset": {
-      borderColor: orange,
-    },
-
-    "&.Mui-focused fieldset": {
-      borderColor: orange,
-      borderWidth: "1px",
-    },
+    "& fieldset": { borderColor },
+    "&:hover fieldset": { borderColor: orange },
+    "&.Mui-focused fieldset": { borderColor: orange, borderWidth: "1px" },
   },
+  "& .MuiInputBase-input": { padding: "8px 12px", fontSize: 14 },
+  "& .MuiSelect-select": { padding: "8px 12px", fontSize: 14 },
+  "& .MuiInputLabel-root": { fontSize: 14, top: "-6px" },
+  "& .MuiInputLabel-shrink": { top: 0 },
+};
 
-  "& .MuiInputBase-input": {
-    padding: "8px 12px",
-    fontSize: 14,
-  },
-
-  "& .MuiSelect-select": {
-    padding: "8px 12px",
-    fontSize: 14,
-  },
-
-  "& .MuiInputLabel-root": {
-    fontSize: 14,
-    top: "-6px",
-  },
-
-  "& .MuiInputLabel-shrink": {
-    top: 0,
+const multilineInputSx = {
+  ...inputSx,
+  "& .MuiOutlinedInput-root": {
+    ...inputSx["& .MuiOutlinedInput-root"],
+    height: "auto",
   },
 };
 
@@ -733,10 +587,7 @@ const primaryButtonSx = {
   borderRadius: "10px",
   fontWeight: 700,
   boxShadow: "none",
-  "&:hover": {
-    bgcolor: orangeDark,
-    boxShadow: "none",
-  },
+  "&:hover": { bgcolor: orangeDark, boxShadow: "none" },
 };
 
 const cancelButtonSx = {

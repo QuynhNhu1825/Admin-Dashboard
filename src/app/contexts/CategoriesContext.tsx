@@ -6,7 +6,6 @@ export interface Category {
   id: string;
   tenNganh: string;
   truong: string;
-  diemChuan: string;
   link: string;
   nam: string;
   xuHuong: string;
